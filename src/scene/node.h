@@ -25,6 +25,8 @@ class Node {
 
 		glm::mat4x4 GetModelMatrix() const;
 
+		virtual ~Node() = default;
+
 		private:
 		int childIndex = 0;
 		static int nextId;

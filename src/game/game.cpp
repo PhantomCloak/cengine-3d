@@ -13,6 +13,7 @@
 #include "render/Camera.h"
 #include "render/backends/opengl/Model.h"
 #include "render/backends/opengl/Shader.h"
+#include "render/backends/opengl/DirectonalLight.h"
 
 Shader* lightingShader;
 Shader* lightCubeShader;
@@ -124,6 +125,8 @@ void Game::Initialize() {
 
 int selectedTextureId;
 unsigned int lightCubeVAO;
+Ref<DirectionalLight> light;
+
 void Game::Setup() {
     std::vector<std::string> files = FileSys::GetFilesInDirectory("./assets/tile_maps");
 
@@ -138,14 +141,17 @@ void Game::Setup() {
 
     Log::Warn("Engine is starting");
 
-    cam = new Camera(glm::vec3(0.0f, 10.0f, 3.0f));
+    cam = new Camera(glm::vec3(0.0f, 2.0f, 3.0f));
+		light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.5f), glm::vec3(1));
+
     lightingShader = new Shader("default.vs", "default.fs");
     lightCubeShader = new Shader("light_cube.vs", "light_cube.fs");
 
-     sampleModel = CreateRef<Model>("sponza.obj");
+		sampleModel = CreateRef<Model>("sponza.obj");
     //sampleModel2 = CreateRef<Model>("tile.obj");
 
     Root->AddChild(sampleModel);
+		Root->AddChild(light);
     //Root->AddChild(sampleModel2);
 
 		//Root->Childs[0]->Transform.pos = glm::vec3(0, 9, 0);
@@ -201,6 +207,7 @@ void Game::Update() {
 }
 glm::vec2 lastCpos = glm::vec2(0);
 
+bool test = true;
 void Game::ProcessInput() {
     glm::vec2 cpos = Cursor::GetCursorPosition();
     glm::vec2 cposOffset = glm::vec2(0);
@@ -228,9 +235,14 @@ void Game::ProcessInput() {
 			cam->updateCameraVectors();
     }
 
+		if (Keyboard::IsKeyPressing(Key_F) && test) { 
+			test = false;
+			Log::Inf("Apply");
+		}
+
     // if(Editor::Instance->viewport->IsFocused())
     //{
-    // cam->ProcessMouseMovement(cposOffset.x, cposOffset.y);
+     cam->ProcessMouseMovement(cposOffset.x, cposOffset.y);
     // }
 
 
@@ -238,8 +250,8 @@ void Game::ProcessInput() {
     Keyboard::Poll();
 }
 
-glm::vec3 lightPos(-3.2f, 750.0f, 2.0f);
-//glm::vec3 lightPos(0.0f, 10.0f, 0.0f);
+//glm::vec3 lightPos(0, 5.0f, 1.0f);
+glm::vec3 lightPos(0.0f, 750.0f, 0.0f);
 glm::vec3 cubePos(0.0f, 0.0f, 0.0f);
 
 void Game::Render() {
@@ -260,15 +272,17 @@ void Game::Render() {
 
 
     lightingShader->use();
+    lightingShader->setBool("test", test);
     lightingShader->setVec3("lightPos", lightPos);
     lightingShader->setVec3("light.position", lightPos);
     lightingShader->setVec3("viewPos", cam->Position);
 
-    lightingShader->setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
-    lightingShader->setVec3("light.diffuse", 0.5f, 0.5f, 0.5f);
-    lightingShader->setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+    //lightingShader->setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
+    //lightingShader->setVec3("light.diffuse", 0.5f, 0.5f, 0.5f);
+    //lightingShader->setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+		light->Draw(*lightingShader);
 
-    lightingShader->setFloat("material.shininess", 64.0f);
+    lightingShader->setFloat("material.shininess", 124.0f);
 
     glm::mat4 projection = glm::perspective(glm::radians(cam->Zoom), (float)renderW / (float)renderH, 0.1f, 10000.0f);
 
@@ -287,8 +301,8 @@ void Game::Render() {
 
     glm::mat4 cameraTransform = glm::mat4(1.0f);
     cameraTransform = glm::translate(cameraTransform, lightPos);
-		cameraTransform = glm::scale(cameraTransform, glm::vec3(10));
-    //cameraTransform = glm::scale(cameraTransform, glm::vec3(0.1f));
+		//cameraTransform = glm::scale(cameraTransform, glm::vec3(10));
+		cameraTransform = glm::scale(cameraTransform, glm::vec3(0.2));
 
     lightCubeShader->use();
     lightCubeShader->setMat4("projection", projection);

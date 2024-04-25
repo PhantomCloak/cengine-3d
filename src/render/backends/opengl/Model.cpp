@@ -1,6 +1,7 @@
 #include "Model.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "log/log.h"
 
 unsigned int loadTexture(char const* path) {
     stbi_set_flip_vertically_on_load(true);
@@ -44,7 +45,7 @@ void Model::Draw(Shader& shader) {
 
 void Model::loadModel(std::string path) {
     Assimp::Importer import;
-    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
@@ -100,6 +101,21 @@ Ref<Mesh> Model::processMesh(aiMesh* mesh, const aiScene* scene) {
             vector.z = mesh->mNormals[i].z;
             vertex.Normal = vector;
         }
+
+				if(mesh->HasTangentsAndBitangents())
+				{
+            vector.x = mesh->mTangents[i].x;
+            vector.y = mesh->mTangents[i].y;
+            vector.z = mesh->mTangents[i].z;
+            vertex.Tangent = vector;
+
+            vector.x = mesh->mBitangents[i].x;
+            vector.y = mesh->mBitangents[i].y;
+            vector.z = mesh->mBitangents[i].z;
+            vertex.BitTangent = vector;
+				}
+
+
         // texture coordinates
         if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
         {
@@ -139,6 +155,16 @@ Ref<Mesh> Model::processMesh(aiMesh* mesh, const aiScene* scene) {
     // 2. specular maps
     std::vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
     textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+
+		// 3. normal maps
+    std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_DISPLACEMENT, "texture_height");
+    textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+
+		//if(normalMaps.size() > 0)
+		//{
+		//	Log::Inf("Yes");
+		//	exit(0);
+		//}
 
     // return a mesh object created from the extracted mesh data
     return CreateRef<Mesh>(vertices, indices, textures);

@@ -171,7 +171,9 @@ CommancheTextureInfo CommancheRenderer::GetTextureInfo(int id) {
 
 void CommancheRenderer::RenderStart() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.53, 0.80f, 0.921f, 1.0f);
+    //glClearColor(0.53, 0.80f, 0.921f, 1.0f);
+		glClearColor(0.53f, 0.70f, 0.921f, 1.0f);
+
 }
 
 void CommancheRenderer::BeginDraw() {
