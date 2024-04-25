@@ -1,5 +1,4 @@
 #include "entity_inspector.h"
-#include "../game/components.h"
 #include "imgui.h"
 
 Ref<Node> EntityInspector::selectedNode = nullptr;

@@ -17,8 +17,6 @@ void Editor::Init(CommancheRenderer* renderer) {
 
     entityInspector = std::make_shared<EntityInspector>();
     logView = std::make_shared<LogView>();
-    //importer = std::make_shared<TileMapImporter>();
-    tilePlacer = std::make_shared<TilePlacer>();
     viewport = std::make_shared<EditorViewPort>();
     sceneList = std::make_shared<SceneHierarchy>();
     menuBar = std::make_shared<EditorMenuBar>(Instance);
@@ -124,11 +122,6 @@ void Editor::Render() {
 #endif
     menuBar->RenderWindow();
     renderDockingSpace();
-
-
-    if (menuBar->enabledWindows[EDITOR_SHOW_MAP_EDITOR]) {
-        tilePlacer->RenderWindow();
-    }
 
     sceneList->RenderWindow();
     entityInspector->RenderWindow();

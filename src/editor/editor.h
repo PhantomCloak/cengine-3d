@@ -8,8 +8,6 @@
 #include "editor/system_explorer.h"
 #include "editor/entity_inspector.h"
 #include "editor/viewport.h"
-#include "editor/tile_placer.h"
-#include "editor/tilemap_importer.h"
 #include "editor/scene_hierarchy.h"
 
 class Editor {
@@ -19,7 +17,6 @@ class Editor {
     static glm::vec2 GetCursorPosition();
     static glm::vec2 GetViewPortSize();
     void Render();
-    std::shared_ptr<TileMapImporter> importer;
     std::shared_ptr<EditorViewPort> viewport;
     std::shared_ptr<SceneHierarchy> sceneList;
     static std::shared_ptr<Editor> Instance;
@@ -27,7 +24,6 @@ class Editor {
     void Keybindings();
     FileView* fileView;
     SystemExplorer* explorer;
-    std::shared_ptr<TilePlacer> tilePlacer;
     std::shared_ptr<LogView> logView;
     std::shared_ptr<EntityInspector> entityInspector;
     std::unique_ptr<CommancheRenderer> renderer;

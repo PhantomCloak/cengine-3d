@@ -1,5 +1,4 @@
 #include "system_explorer.h"
-#include "flecs.h"
 #include "imgui.h"
 #include <string>
 #include <unordered_map>
