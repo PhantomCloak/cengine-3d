@@ -3,7 +3,7 @@
 #include "stb_image.h"
 #include "log/log.h"
 
-unsigned int loadTexture(char const* path) {
+unsigned int loadTexture(char const* path, bool hint = false) {
     stbi_set_flip_vertically_on_load(true);
     unsigned int textureID;
     glGenTextures(1, &textureID);
@@ -12,13 +12,28 @@ unsigned int loadTexture(char const* path) {
     unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
     if (data) {
         GLenum format;
-        if (nrComponents == 1) {
-            format = GL_RED;
-        } else if (nrComponents == 3) {
-            format = GL_RGB;
-        } else if (nrComponents == 4) {
-            format = GL_RGBA;
-        }
+
+				if(false)
+				{
+					if (nrComponents == 1) {
+        	    format = GL_RED;
+        	} else if (nrComponents == 3) {
+        	    format = GL_SRGB;
+        	} else if (nrComponents == 4) {
+        	    format = GL_SRGB_ALPHA;
+        	}
+				} 
+				else
+				{
+					if (nrComponents == 1) {
+        	    format = GL_RED;
+        	} else if (nrComponents == 3) {
+        	    format = GL_RGB;
+        	} else if (nrComponents == 4) {
+        	    format = GL_RGBA;
+        	}
+				}
+
 
         glBindTexture(GL_TEXTURE_2D, textureID);
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
@@ -185,7 +200,12 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
         }
         if (!skip) { // if texture hasn't been loaded already, load it
             Texture texture;
-            texture.id = loadTexture(str.C_Str());
+
+						if(typeName == "texture_diffuse")
+							texture.id = loadTexture(str.C_Str(), true);
+						else
+							texture.id = loadTexture(str.C_Str());
+
             std::cout << "Loading Texture: " << str.C_Str() << std::endl;
             texture.type = typeName;
             texture.path = str.C_Str();

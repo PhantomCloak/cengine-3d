@@ -109,7 +109,7 @@ void Game::Initialize() {
 
     AssetManager::Initialize(renderer.get());
 
-    renderer->Initialize("Twelve Villages", 1920, 1080);
+    renderer->Initialize("Twelve Villages", 1920 * 2, 1080 *2);
 
     Log::Inf("Render backend has created.");
 
@@ -251,7 +251,7 @@ void Game::ProcessInput() {
 }
 
 //glm::vec3 lightPos(0, 5.0f, 1.0f);
-glm::vec3 lightPos(0.0f, 750.0f, 0.0f);
+glm::vec3 lightPos(0.0f, 100.0f, 0.0f);
 glm::vec3 cubePos(0.0f, 0.0f, 0.0f);
 
 void Game::Render() {
@@ -269,6 +269,7 @@ void Game::Render() {
     glViewport(0, 0, renderW, renderH);
     glClearColor(0.0f, 0.13f, 0.0, 1.0f);
     glEnable(GL_DEPTH_TEST);
+		//glEnable(GL_FRAMEBUFFER_SRGB); 
 
 
     lightingShader->use();
@@ -301,8 +302,8 @@ void Game::Render() {
 
     glm::mat4 cameraTransform = glm::mat4(1.0f);
     cameraTransform = glm::translate(cameraTransform, lightPos);
-		//cameraTransform = glm::scale(cameraTransform, glm::vec3(10));
-		cameraTransform = glm::scale(cameraTransform, glm::vec3(0.2));
+		cameraTransform = glm::scale(cameraTransform, glm::vec3(10));
+		//cameraTransform = glm::scale(cameraTransform, glm::vec3(0.2));
 
     lightCubeShader->use();
     lightCubeShader->setMat4("projection", projection);
@@ -313,6 +314,7 @@ void Game::Render() {
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		//glDisable(GL_FRAMEBUFFER_SRGB); 
 
     renderer->textureColorbuffer = ppfxTexture;
 }
