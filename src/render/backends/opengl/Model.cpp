@@ -2,6 +2,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "log/log.h"
+#include "io/filesystem.h"
 
 unsigned int loadTexture(char const* path, bool hint = false) {
     stbi_set_flip_vertically_on_load(true);
@@ -59,6 +60,9 @@ void Model::Draw(Shader& shader) {
 }
 
 void Model::loadModel(std::string path) {
+
+		strPath = path;
+
     Assimp::Importer import;
     const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace);
 
@@ -201,10 +205,11 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
         if (!skip) { // if texture hasn't been loaded already, load it
             Texture texture;
 
+						std::string fullPath = FileSys::GetParentDirectory(strPath) + "/" + str.C_Str();
 						if(typeName == "texture_diffuse")
-							texture.id = loadTexture(str.C_Str(), true);
+							texture.id = loadTexture(fullPath.c_str(), true);
 						else
-							texture.id = loadTexture(str.C_Str());
+							texture.id = loadTexture(fullPath.c_str());
 
             std::cout << "Loading Texture: " << str.C_Str() << std::endl;
             texture.type = typeName;

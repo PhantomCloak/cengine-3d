@@ -113,7 +113,7 @@ void Game::Initialize() {
 
     AssetManager::Initialize(renderer.get());
 
-    renderer->Initialize("Twelve Villages", 1920 * 2, 1080 *2);
+    renderer->Initialize("Twelve Villages", 1920, 1080);
 
     Log::Inf("Render backend has created.");
 
@@ -216,43 +216,27 @@ unsigned int loadCubemap(std::vector<std::string> faces)
 
     return textureID;
 }
+
 unsigned int skyboxVAO, skyboxVBO;
 
 void Game::Setup() {
-    std::vector<std::string> files = FileSys::GetFilesInDirectory("./assets/tile_maps");
-
-    for (auto file : files) {
-        if (FileSys::GetFileExtension(file) != "png")
-            continue;
-
-        AssetManager::AddTexture(FileSys::GetFileName(file), file);
-    }
-
-    AssetManager::AddTexture("desert", "assets/images/desert.png");
-
-    Log::Warn("Engine is starting");
+	Log::Warn("Engine is starting");
 
     cam = new Camera(glm::vec3(0.0f, 2.0f, 3.0f));
 		light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.5f), glm::vec3(1));
 
-    lightingShader = new Shader("default.vs", "default.fs");
-    lightCubeShader = new Shader("light_cube.vs", "light_cube.fs");
-    skyboxShader = new Shader("skybox.vs", "skybox.fs");
+    lightingShader = new Shader("assets/shaders/default.vs", "assets/shaders/default.fs");
+    lightCubeShader = new Shader("assets/shaders/light_cube.vs", "assets/shaders/light_cube.fs");
+    skyboxShader = new Shader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
 
-		sampleModel = CreateRef<Model>("sponza.obj");
-    //sampleModel2 = CreateRef<Model>("tile.obj");
+		sampleModel = CreateRef<Model>("assets/models/sponza.obj");
 
     Root->AddChild(sampleModel);
 		Root->AddChild(light);
-    //Root->AddChild(sampleModel2);
-
-		//Root->Childs[0]->Transform.pos = glm::vec3(0, 9, 0);
-    //Root->Childs[0]->Transform.scale = glm::vec3(10.0f, 1.0f, 10.0f);
 
     CommancheRenderer::Instance->AddOnViewportChangeEvent([](int width, int height) {
         // CreateRenderBuffer(width / 2, height / 2);
     });
-
 
     unsigned int VBO, cubeVAO;
     glGenVertexArrays(1, &cubeVAO);
@@ -277,10 +261,6 @@ void Game::Setup() {
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-
-		//glGenTextures(1, &cubeTextureId);
-		//glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTextureId);
-
 
 		std::vector<std::string> faces
     {
@@ -356,11 +336,7 @@ void Game::ProcessInput() {
 			Log::Inf("Apply");
 		}
 
-    // if(Editor::Instance->viewport->IsFocused())
-    //{
      cam->ProcessMouseMovement(cposOffset.x, cposOffset.y);
-    // }
-
 
     lastCpos = cpos;
     Keyboard::Poll();
