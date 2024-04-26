@@ -28,11 +28,10 @@ uniform bool test;
 
 void main()
 {
-	
 	float gamma = 2.2;
 	float constant = 1.0;
-	float linear = 0.005;
-	float quadratic = 0.000003;
+	float linear = 0.002;
+	float quadratic = 0.000027;
 
 	float distance = length(LightPos - FragPos);
 	float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));
@@ -48,8 +47,8 @@ void main()
 	vec3 norm = normalize(normal);
 	vec3 lightDir = normalize(LightPos - FragPos);
 	float diff = max(dot(norm, lightDir), 0.0);
-	//vec3 diffuse = light.diffuse * diff * pow(texture(material.texture_diffuse1, TexCoords).rgb, vec3(gamma));
-	vec3 diffuse = light.diffuse * diff * texture(material.texture_diffuse1, TexCoords).rgb;
+	vec3 diffuse = light.diffuse * diff * pow(texture(material.texture_diffuse1, TexCoords).rgb, vec3(gamma));
+	//vec3 diffuse = light.diffuse * diff * texture(material.texture_diffuse1, TexCoords).rgb;
 
 	// specular
 	vec3 viewDir = normalize(-FragPos);
@@ -66,5 +65,8 @@ void main()
 	vec3 result = ambient + diffuse + specular;
 
 	//FragColor = vec4(pow(result, vec3(1.0 / gamma)), 1.0);
+	//FragColor = vec4(result, 1.0);
 	FragColor = vec4(result, 1.0);
+	//FragColor = texture(material.texture_diffuse1, TexCoords);
 }
+
