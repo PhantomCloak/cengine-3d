@@ -1,5 +1,7 @@
 #version 330 core
+
 out vec4 FragColor;
+out vec4 DepthColor;
 
 in vec3 Normal;  
 in vec3 FragPos;
@@ -25,6 +27,18 @@ struct Light {
 uniform Material material;
 uniform Light light;
 uniform bool test;
+
+
+
+float near = 0.1; 
+float far  = 2000.0; 
+  
+float LinearizeDepth(float depth) 
+{
+    float z = depth * 2.0 - 1.0; // back to NDC 
+    return (2.0 * near * far) / (far + near - z * (far - near));	
+}
+
 
 void main()
 {
@@ -71,7 +85,10 @@ void main()
 
 	//FragColor = vec4(pow(result, vec3(1.0 / gamma)), 1.0);
 	//FragColor = vec4(result, 1.0);
-	FragColor = vec4(result, 1.0);
 	//FragColor = texture(material.texture_diffuse1, TexCoords);
+	FragColor = vec4(result, 1.0);
+
+	float depth = LinearizeDepth(gl_FragCoord.z) / far; // divide by far for demonstration
+    DepthColor = vec4(vec3(depth), 1.0);
 }
 

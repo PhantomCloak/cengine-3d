@@ -64,3 +64,12 @@ bool Cursor::HasLeftCursorClicked() {
 bool Cursor::HasRightCursorClicked() {
     return glfwGetMouseButton(wnd, 1);
 }
+
+
+void Cursor::CaptureMouse(bool shouldCapture)
+{
+	if(shouldCapture)
+		glfwSetInputMode((GLFWwindow*)CommancheRenderer::Instance->wnd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	else
+		glfwSetInputMode((GLFWwindow*)CommancheRenderer::Instance->wnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}

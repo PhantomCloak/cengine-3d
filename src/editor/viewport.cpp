@@ -85,30 +85,49 @@ void Fit2(int image, int srcWidth, int srcHeight) {
     // Render the image with corrected UVs and resized dimensions.
     ImGui::Image((void*)(intptr_t)image, ImVec2(float(sizeX), float(sizeY)), uv0, uv1);
 
-    // Optionally draw black bars if needed (you can adjust the color and styling as necessary)
-    ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f); // Black color for the letterbox
+		// Optionally draw black bars if needed (you can adjust the color and styling as necessary)
+		ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f); // Black color for the letterbox
 }
 
 void EditorViewPort::RenderWindow() {
-    static bool Open = true;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    std::string title = "2D View " + std::to_string((int)ViewportSize.x) + "x" + std::to_string((int)ViewportSize.y) + "###2DView";
-    if (ImGui::Begin(title.c_str(), &Open, ImGuiWindowFlags_NoNav)) {
+	static bool Open = true;
 
-        isFocused = ImGui::IsWindowHovered();
-        static float zoomValue = 1;
-        static float lastZoomValue = 1;
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	std::string title = "2D View " + std::to_string((int)ViewportSize.x) + "x" + std::to_string((int)ViewportSize.y) + "###2DView";
+	if (ImGui::Begin(title.c_str(), &Open, ImGuiWindowFlags_NoNav)) {
 
-        ImVec2 windowPos = ImGui::GetWindowPos();
-        ImVec2 windowSize = ImGui::GetWindowSize();
-        ImVec2 contentAvail = ImGui::GetContentRegionAvail();
+		static float zoomValue = 1;
+		static float lastZoomValue = 1;
 
-        if (ImGui::IsWindowHovered() || ImGui::IsWindowFocused()) {
-            // Get the screen coordinates of the window boundaries
-        }        
-        int frameId = CommancheRenderer::Instance->GetFrame();
-        Fit2(frameId, 1920, 1080);
-    }
-    ImGui::End();
-    ImGui::PopStyleVar();
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		ImVec2 windowSize = ImGui::GetWindowSize();
+		ImVec2 contentAvail = ImGui::GetContentRegionAvail();
+
+		ImGuiIO& io = ImGui::GetIO();
+
+		if ((ImGui::IsWindowHovered() || ImGui::IsWindowFocused()) && *io.MouseClicked != 0) {
+
+				isFocused = true;
+				Cursor::CaptureMouse(true);
+		}        
+		
+
+		if (isFocused && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+		{
+			isFocused = false;
+			Cursor::CaptureMouse(false);
+		}
+
+		int frameId = CommancheRenderer::Instance->GetFrame();
+		Fit2(frameId, 1920, 1080);
+	}
+	ImGui::End();
+
+	if (ImGui::Begin("Depth Buffer", &Open, ImGuiWindowFlags_NoNav)) { 
+		int frameId = CommancheRenderer::Instance->depthBuffer;
+		Fit2(frameId, 1920, 1080);
+	}
+	ImGui::End();
+
+	ImGui::PopStyleVar();
 }

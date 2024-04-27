@@ -10,4 +10,5 @@ public:
     static glm::vec2 GetCursorWorldPosition(glm::vec2 screenPoint, CommancheCamera cam);
     static bool HasLeftCursorClicked();
     static bool HasRightCursorClicked();
+		static void CaptureMouse(bool shouldCapture);
 };

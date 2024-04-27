@@ -14,6 +14,10 @@
 #include "render/backends/opengl/Shader.h"
 #include "constants.h"
 
+#if EDITOR
+#include "editor/editor.h"
+#endif
+
 
 Shader *lightingShader;
 Shader *lightCubeShader;
@@ -37,7 +41,7 @@ void Game::Initialize() {
 
   AssetManager::Initialize(renderer.get());
 
-  renderer->Initialize("Twelve Villages", 1920 * 2, 1080 * 2);
+  renderer->Initialize("Twelve Villages", 1920, 1080);
 
   Log::Inf("Render backend has created.");
 
@@ -68,6 +72,7 @@ void Game::Setup() {
 
   Root->AddChild(sampleModel);
   Root->AddChild(light);
+
 }
 
 void Game::Update() {
@@ -117,7 +122,8 @@ void Game::ProcessInput() {
     camera->updateCameraVectors();
   }
 
-  camera->ProcessMouseMovement(cposOffset.x, cposOffset.y);
+	if(Editor::Instance->viewport->IsFocused())
+		camera->ProcessMouseMovement(cposOffset.x, cposOffset.y);
 
   lastCpos = cpos;
   Keyboard::Poll();
@@ -134,7 +140,9 @@ void Game::Render() {
 	// Viewport
 	static unsigned int viewportFbo = -1;
 	static unsigned int viewporFboDepthBuffer = -1;
-	static unsigned int viewportFboOutTex = -1;
+	static unsigned int viewportFboOutTex = -1, viewportDepthFboOutTex = -1;
+
+	static unsigned int depthBufferFbo = -1, depthBufferTex = -1;
 
 
 	// Skybox
@@ -143,7 +151,6 @@ void Game::Render() {
 	// Light Cube
 	static unsigned int lightCubeVAO = -1;
   static unsigned int cubeVBO = -1, cubeVAO = - 1;
-
 
 	if(cubeVAO == -1 && cubeVBO == -1 && lightCubeVAO == -1)
 	{
@@ -191,8 +198,17 @@ void Game::Render() {
     glBindFramebuffer(GL_FRAMEBUFFER, viewportFbo);
 
     glGenTextures(1, &viewportFboOutTex);
+    glGenTextures(1, &viewportDepthFboOutTex);
 
     glBindTexture(GL_TEXTURE_2D, viewportFboOutTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+
+    glBindTexture(GL_TEXTURE_2D, viewportDepthFboOutTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -207,7 +223,11 @@ void Game::Render() {
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, viewportFbo);
+
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, viewportFboOutTex, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, viewportDepthFboOutTex, 0);
+	GLenum drawBuffers2[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+	glDrawBuffers(2, drawBuffers2);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glViewport(0, 0, renderWitdh, renderHeight);
@@ -267,6 +287,7 @@ void Game::Render() {
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   renderer->textureColorbuffer = viewportFboOutTex;
+  renderer->depthBuffer = viewportDepthFboOutTex;
 }
 
 void Game::Destroy() { isRunning = false; }

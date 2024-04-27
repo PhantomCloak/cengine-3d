@@ -24,6 +24,7 @@ enum KeyCode {
     Key_UArrow=   265,
     Key_RArrow = 262,
     Key_DArrow = 264,
+    Key_ESCAPE = 27,
     Key_SPACE = 32,
     Key_APOSTROPHE = 39,
     Key_COMMA = 44,
