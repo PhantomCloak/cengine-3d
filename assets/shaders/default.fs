@@ -36,6 +36,11 @@ void main()
 	float distance = length(LightPos - FragPos);
 	float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));
 
+	vec4 textureColour = texture(material.texture_diffuse1, TexCoords);
+	if(textureColour.a < 0.5) {
+		discard;
+	}
+
 	vec3 normal;
 	normal = texture(material.texture_height1, TexCoords).rgb;
 	normal = normal * 2.0 - 1.0;   
@@ -58,9 +63,9 @@ void main()
 	float specularIntensity = texture(material.texture_specular1, TexCoords).r;
 	vec3 specular = light.specular * spec * specularIntensity;
 
-	ambient  *= attenuation; 
-	diffuse  *= attenuation;
-	specular *= attenuation;
+	ambient  *= attenuation * 2; 
+	diffuse  *= attenuation * 2;
+	specular *= attenuation * 2;
 
 	vec3 result = ambient + diffuse + specular;
 
