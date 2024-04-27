@@ -22,6 +22,8 @@ class AssetManager {
     static void AddFont(const std::string& assetId, const std::string& path, int fontSize);
     static int GetFont(const std::string& assetId);
 
+		static unsigned int LoadCubeMap(std::vector<std::string> faces);
+
     static std::string GetAssetRootPath() {
       return "assets/";
     }
