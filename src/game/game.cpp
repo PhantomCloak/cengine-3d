@@ -23,6 +23,8 @@ Shader *defaultShader;
 Shader *drawCubeShader;
 Shader *skyboxShader;
 Shader *unlitShader;
+Shader *shadowShader;
+Shader *debugShader;
 
 Ref<Model> sampleModel;
 Ref<Model> lightModel;
@@ -75,6 +77,8 @@ void Game::Setup() {
   defaultShader = new Shader("assets/shaders/default.vs", "assets/shaders/default.fs");
   skyboxShader = new Shader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
   unlitShader = new Shader("assets/shaders/unlit.vs", "assets/shaders/unlit.fs");
+  shadowShader = new Shader("assets/shaders/shadow.vs", "assets/shaders/shadow.fs");
+  debugShader = new Shader("assets/shaders/debug.vs", "assets/shaders/debug.fs");
 
   sampleModel = CreateRef<Model>("assets/models/sponza.obj");
   lightModel = CreateRef<Model>("assets/models/cube.obj");
@@ -173,6 +177,62 @@ void RenderScene(Shader* shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
 	lightModel->Draw(*shader);
 }
 
+int DebugRenderOffScreenImage(int renderWitdh, int renderHeight, int textureId) {
+	static unsigned int debugFbo = -1, debugOutTex = -1, quadVBO = -1, quadVAO = -1;
+
+	if(quadVAO == -1 && quadVBO == -1)
+	{
+		glGenVertexArrays(1, &quadVAO);
+		glGenBuffers(1, &quadVBO);
+		glBindVertexArray(quadVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	}
+
+	if(debugFbo == -1 && debugOutTex == -1)
+	{
+    glGenFramebuffers(1, &debugFbo);
+    glGenTextures(1, &debugOutTex);
+
+
+		glBindTexture(GL_TEXTURE_2D, debugOutTex);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, debugFbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, debugOutTex, 0); // Set Output Tex
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	float nearPlane = 0.1f;
+	float farPlane = 2500.0f;
+
+	debugShader->use();
+	debugShader->setInt("image", 0);
+	debugShader->setFloat("near_plane", nearPlane);
+	debugShader->setFloat("far_plane", farPlane);
+
+	// Set Input Tex
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, textureId);
+
+	// Draw
+	glBindVertexArray(quadVAO);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glBindVertexArray(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return debugOutTex;
+}
+
 void Game::Render() {
   int renderWitdh = CommancheRenderer::screenWidth;
   int renderHeight = CommancheRenderer::screenHeight;
@@ -184,7 +244,8 @@ void Game::Render() {
 	static unsigned int skyboxVAO = -1, skyboxVBO = -1, skyboxCubeTextureId = -1;
 
 	// Light
-	static unsigned int lightFbo = -1,lightDepthAttachmentBuff = -1, lightOutTex = -1;
+	//static unsigned int lightFbo = -1,lightDepthAttachmentBuff = -1, lightOutTex = -1;
+	static unsigned int shadowMapFbo = -1, shadowMapOutTex = -1;
 
   if (vpFbo == -1) {
     glGenFramebuffers(1, &vpFbo);
@@ -232,29 +293,74 @@ void Game::Render() {
 		skyboxCubeTextureId = AssetManager::LoadCubeMap(faces);
 	}
 
-	if(lightFbo == -1 && lightOutTex == -1)
+	//if(lightFbo == -1 && lightOutTex == -1)
+	//{
+  //  glGenFramebuffers(1, &lightFbo);
+  //  glGenTextures(1, &lightOutTex);
+
+
+  //  glBindTexture(GL_TEXTURE_2D, lightOutTex);
+  //  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  //  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  //  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  //  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  //  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  //  glBindTexture(GL_TEXTURE_2D, 0);
+
+
+  //  glGenRenderbuffers(1, &lightDepthAttachmentBuff);
+  //  glBindRenderbuffer(GL_RENDERBUFFER, lightDepthAttachmentBuff);
+  //  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, renderWitdh, renderHeight);
+
+  //  glBindFramebuffer(GL_FRAMEBUFFER, lightFbo);
+  //  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, lightDepthAttachmentBuff);
+  //  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//}
+
+	const unsigned int SHADOW_WIDTH = renderWitdh, SHADOW_HEIGHT = renderHeight;
+	if(shadowMapFbo == -1 && shadowMapOutTex == -1)
 	{
-    glGenFramebuffers(1, &lightFbo);
-    glGenTextures(1, &lightOutTex);
+    glGenFramebuffers(1, &shadowMapFbo);
+    glGenTextures(1, &shadowMapOutTex);
+
+		glBindTexture(GL_TEXTURE_2D, shadowMapOutTex);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 
-    glBindTexture(GL_TEXTURE_2D, lightOutTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-
-    glGenRenderbuffers(1, &lightDepthAttachmentBuff);
-    glBindRenderbuffer(GL_RENDERBUFFER, lightDepthAttachmentBuff);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, renderWitdh, renderHeight);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, lightFbo);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, lightDepthAttachmentBuff);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMapOutTex, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
+
+	// Render Scene From Light Perspective
+
+	//glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+  glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
+  glClear(GL_DEPTH_BUFFER_BIT);
+
+	glm::vec3 lookPos = camera->Position;
+	float nearPlane = 0.1f;
+	float farPlane = 2500.0f;
+	float height = renderHeight;
+	float width = renderWitdh;
+
+	glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, nearPlane, farPlane);
+	glm::mat4 view = light->GetViewMatrix();
+
+	RenderScene(shadowShader, orthoProjection ,view);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  //glViewport(0, 0, renderWitdh, renderHeight);
+
+	int debugTexture = DebugRenderOffScreenImage(SHADOW_WIDTH, SHADOW_HEIGHT, shadowMapOutTex);
+
+	// Render Scene Lit
 
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
 
@@ -269,18 +375,20 @@ void Game::Render() {
   glEnable(GL_DEPTH_TEST);
 
   glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)renderWitdh / (float)renderHeight, 0.1f, 10000.0f);
-	glm::mat4 view = camera->GetViewMatrix();
+	view = camera->GetViewMatrix();
 
 	RenderScene(defaultShader, projection, view);
+
+
+  // Render Skybox
 
   glDepthFunc(GL_LEQUAL);
 
   skyboxShader->use();
-  view = glm::mat4(glm::mat3(camera->GetViewMatrix())); // remove translation from the view matrix
+  view = glm::mat4(glm::mat3(camera->GetViewMatrix()));
   skyboxShader->setMat4("view", view);
   skyboxShader->setMat4("projection", projection);
 
-  // skybox cube
   glBindVertexArray(skyboxVAO);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubeTextureId);
@@ -290,33 +398,10 @@ void Game::Render() {
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	// Render Scene From Light Perspective
-
-  glBindFramebuffer(GL_FRAMEBUFFER, lightFbo);
-
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, lightOutTex, 0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glDepthFunc(GL_LEQUAL);
-
-	glm::vec3 lookPos = camera->Position;
-
-	float aspectRatio = 1.7777777778f;
-	float nearPlane = 0.1f;
-	float farPlane = 10000.0f;
-	float height = renderHeight;
-	float width = renderWitdh;
-
-	glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, nearPlane, farPlane);
-	view = light->GetViewMatrix();
-
-	RenderScene(unlitShader, orthoProjection ,view);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 	renderer->textureColorbuffer = vpOutTex;
 	renderer->depthBuffer = vpDepthOutTex;
-	renderer->lightBuffer = lightOutTex;
+	//renderer->lightBuffer = lightOutTex;
+	renderer->lightBuffer = debugTexture;
 }
 
 void Game::Destroy() { isRunning = false; }
