@@ -10,6 +10,7 @@ out vec3 Normal;
 out vec3 LightPos;
 out vec2 TexCoords;
 out mat3 TBN;
+out vec4 FragPosLightSpace;
 
 
 uniform vec3 lightPos; // we now define the uniform in the vertex shader and pass the 'view space' lightpos to the fragment shader. lightPos is currently in world space.
@@ -18,26 +19,27 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+uniform mat4 lightProjection;
+uniform mat4 lightView;
+
 void main()
 {
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
 
-	//vec3 T = normalize(vec3((view *model) * vec4(aTangent,   0.0)));
-	//vec3 B = normalize(vec3((view *model) * vec4(aBitangent, 0.0)));
-	//vec3 N = normalize(vec3((view *model) * vec4(aNormal,    0.0)));
-
 	vec3 T = normalize(vec3((view * model) * vec4(aTangent, 0.0)));
 	vec3 N = normalize(vec3((view * model) * vec4(aNormal, 0.0)));
-	// re-orthogonalize T with respect to N
 	T = normalize(T - dot(T, N) * N);
-	// then retrieve perpendicular vector B with the cross product of T and N
 	vec3 B = cross(N, T);
 
 	TBN = mat3(T, B, N);
-
 
 	FragPos = vec3(view * model * vec4(aPos, 1.0));
 	Normal = mat3(transpose(inverse(view * model))) * aNormal; // fix non-uniform scaling
 	LightPos = vec3(view * vec4(lightPos, 1.0));
 	TexCoords = aTexCoords;
+
+
+	vec3 FragPos2 = vec3(model * vec4(aPos, 1.0));
+	// Shadow
+	FragPosLightSpace = (lightProjection * lightView) * vec4(FragPos2, 1.0);
 }

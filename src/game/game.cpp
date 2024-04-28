@@ -69,8 +69,8 @@ void Game::Setup() {
 
   light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.5f),
                                       glm::vec3(1));
-	light->Transform.position = glm::vec3(0, 2000, 0);
-	light->Transform.rotation = glm::vec3(-70, 0, 0);
+	light->Transform.position = glm::vec3(0, 3000, 0);
+	light->Transform.rotation = glm::vec3(-66, 28, 0);
 
 	light->Transform.scale = glm::vec3(10);
 
@@ -316,7 +316,7 @@ void Game::Render() {
   //  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	//}
 
-	const unsigned int SHADOW_WIDTH = renderWitdh, SHADOW_HEIGHT = renderHeight;
+	const unsigned int SHADOW_WIDTH = 1024 * 5, SHADOW_HEIGHT = 1024 * 5;
 	if(shadowMapFbo == -1 && shadowMapOutTex == -1)
 	{
     glGenFramebuffers(1, &shadowMapFbo);
@@ -341,33 +341,38 @@ void Game::Render() {
 
 	// Render Scene From Light Perspective
 
-	//glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	glCullFace(GL_FRONT);
   glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
   glClear(GL_DEPTH_BUFFER_BIT);
 
 	glm::vec3 lookPos = camera->Position;
 	float nearPlane = 0.1f;
-	float farPlane = 3000.0f;
-	float height = renderHeight * 4;
-	float width = renderWitdh * 4;
+	float farPlane = 4000.0f;
+
+	//float height = renderHeight * 4;
+	//float width = renderWitdh * 4;
+
+	float height = SHADOW_HEIGHT;
+	float width = SHADOW_WIDTH;
 
 	glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, nearPlane, farPlane);
+	//glm::mat4 orthoProjection = glm::ortho(0.0f, width, 0.0f, height, nearPlane, farPlane);
 	glm::mat4 view = light->GetViewMatrix();
 
 	shadowShader->use();
 	RenderScene(shadowShader, orthoProjection ,view);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  //glViewport(0, 0, renderWitdh, renderHeight);
+  //glViewport(0, 0, renderWitdh * 2, renderHeight * 2);
 
 	int debugTexture = DebugRenderOffScreenImage(SHADOW_WIDTH, SHADOW_HEIGHT, shadowMapOutTex);
 
 	// Render Scene Lit
 
-	//glViewport(0, 0, renderWitdh * 2, renderHeight * 2);
 	glCullFace(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
+	glViewport(0, 0, renderWitdh * 2, renderHeight * 2);
 
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, vpOutTex, 0);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, vpDepthOutTex, 0);

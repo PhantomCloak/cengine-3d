@@ -7,6 +7,7 @@ in vec3 Normal;
 in vec3 FragPos;
 in vec3 LightPos;
 in vec2 TexCoords;
+in vec4 FragPosLightSpace;
 in mat3 TBN;
 
 uniform vec3 viewPos;
@@ -29,9 +30,10 @@ uniform Light light;
 uniform bool test;
 
 
+uniform sampler2D shadowMap;
 
 float near = 0.1; 
-float far  = 2000.0; 
+float far  = 4000.0; 
   
 float LinearizeDepth(float depth) 
 {
@@ -40,18 +42,46 @@ float LinearizeDepth(float depth)
 }
 
 
+float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+{
+	// perform perspective divide
+	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+	// transform to [0,1] range
+	projCoords = projCoords * 0.5 + 0.5;
+	// get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+	float closestDepth = texture(shadowMap, projCoords.xy).r; 
+	// get depth of current fragment from light's perspective
+	float currentDepth = projCoords.z;
+	// check whether current frag pos is in shadow
+	//float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+	float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+
+	//float bias = 0.005;
+	float shadow = 0.0;
+	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+	const int halfkernelWidth = 3;
+	for(int x = -halfkernelWidth; x <= halfkernelWidth; ++x)
+	{
+		for(int y = -halfkernelWidth; y <= halfkernelWidth; ++y)
+		{
+			float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+		}
+	}
+	shadow /= ((halfkernelWidth*2+1)*(halfkernelWidth*2+1));	if(projCoords.z > 1.0)
+		shadow = 0.0;
+	return shadow;
+}
+
 void main()
 {
 	float gamma = 2.2;
-	float constant = 1.0;
-	float linear = 0.0005;
-	float quadratic = 0.000027 /4;
-
 	float distance = length(LightPos - FragPos);
-	float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));
+	vec4 textureColor = pow(texture(material.texture_diffuse1, TexCoords), vec4(gamma));
+	//pow(texture(diffuse, texCoords).rgb, vec3(gamma));
 
-	vec4 textureColour = texture(material.texture_diffuse1, TexCoords);
-	if(textureColour.a < 0.5) {
+	// Hack
+	if(textureColor.a < 0.5) {
 		discard;
 	}
 
@@ -60,33 +90,26 @@ void main()
 	normal = normal * 2.0 - 1.0;   
 	normal = normalize(TBN * normal); 	// Ambient
 
-	vec3 ambient = light.ambient * texture(material.texture_diffuse1, TexCoords).rgb;
+	vec3 ambient = light.ambient * vec3(1);
 
 	// Diffuse
 	vec3 norm = normalize(normal);
 	vec3 lightDir = normalize(LightPos - FragPos);
 	float diff = max(dot(norm, lightDir), 0.0);
-	vec3 diffuse = light.diffuse * diff * pow(texture(material.texture_diffuse1, TexCoords).rgb, vec3(gamma));
-	//vec3 diffuse = light.diffuse * diff * texture(material.texture_diffuse1, TexCoords).rgb;
+	vec3 diffuse = light.diffuse * diff;
 
 	// specular
 	vec3 viewDir = normalize(-FragPos);
 	vec3 reflectDir = reflect(-lightDir, norm);
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-	// Use the red channel as the specular intensity and apply it to the light's specular color.
-	float specularIntensity = texture(material.texture_specular1, TexCoords).r;
-	vec3 specular = light.specular * spec * specularIntensity;
+	vec3 specular = spec * light.specular;
 
-	//ambient  *= attenuation; 
-	//diffuse  *= attenuation;
-	//specular *= attenuation;
+	float shadow = ShadowCalculation(FragPosLightSpace, normal, lightDir);
+	//float shadow = ShadowCalculation(FragPosLightSpace, normal, lightDir);
+	vec3 resultLight = (ambient + (1.0 - shadow) * (diffuse + specular)) * textureColor.rgb;
 
-	vec3 result = ambient + diffuse + specular;
 
-	//FragColor = vec4(pow(result, vec3(1.0 / gamma)), 1.0);
-	//FragColor = vec4(result, 1.0);
-	//FragColor = texture(material.texture_diffuse1, TexCoords);
-	FragColor = vec4(result, 1.0);
+	FragColor = vec4(resultLight, 1.0);
 
 	float depth = LinearizeDepth(gl_FragCoord.z) / far; // divide by far for demonstration
     DepthColor = vec4(vec3(depth), 1.0);
