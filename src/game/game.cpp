@@ -158,12 +158,9 @@ void Game::Render() {
   int renderHeight = CommancheRenderer::screenHeight;
 
 	// Viewport
-	static unsigned int viewportFbo = -1;
-	static unsigned int viewporFboDepthBuffer = -1;
-	static unsigned int viewportFboOutTex = -1, viewportDepthFboOutTex = -1;
+	static unsigned int vpFbo = -1, vpDepthAttachmentBuff = -1, vpOutTex = -1, vpDepthOutTex = -1;
 
 	static unsigned int depthBufferFbo = -1, depthBufferTex = -1;
-
 
 	// Skybox
 	static unsigned int skyboxVAO = -1, skyboxVBO = -1, skyboxCubeTextureId = -1;
@@ -184,14 +181,14 @@ void Game::Render() {
 		skyboxCubeTextureId = AssetManager::LoadCubeMap(faces);
 	}
 
-  if (viewportFbo == -1) {
-    glGenFramebuffers(1, &viewportFbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, viewportFbo);
+  if (vpFbo == -1) {
+    glGenFramebuffers(1, &vpFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
 
-    glGenTextures(1, &viewportFboOutTex);
-    glGenTextures(1, &viewportDepthFboOutTex);
+    glGenTextures(1, &vpOutTex);
+    glGenTextures(1, &vpDepthOutTex);
 
-    glBindTexture(GL_TEXTURE_2D, viewportFboOutTex);
+    glBindTexture(GL_TEXTURE_2D, vpOutTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -199,24 +196,24 @@ void Game::Render() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 
-    glBindTexture(GL_TEXTURE_2D, viewportDepthFboOutTex);
+    glBindTexture(GL_TEXTURE_2D, vpDepthOutTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glGenRenderbuffers(1, &viewporFboDepthBuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, viewporFboDepthBuffer);
+    glGenRenderbuffers(1, &vpDepthAttachmentBuff);
+    glBindRenderbuffer(GL_RENDERBUFFER, vpDepthAttachmentBuff);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, renderWitdh, renderHeight);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, viewporFboDepthBuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, vpDepthAttachmentBuff);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
-  glBindFramebuffer(GL_FRAMEBUFFER, viewportFbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, viewportFboOutTex, 0);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, viewportDepthFboOutTex, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, vpOutTex, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, vpDepthOutTex, 0);
 	GLenum drawBuffers2[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
 	glDrawBuffers(2, drawBuffers2);
 
@@ -248,8 +245,8 @@ void Game::Render() {
 
 	// Render Scene From Light
 
-  renderer->textureColorbuffer = viewportFboOutTex;
-  renderer->depthBuffer = viewportDepthFboOutTex;
+  renderer->textureColorbuffer = vpOutTex;
+  renderer->depthBuffer = vpDepthOutTex;
 }
 
 void Game::Destroy() { isRunning = false; }
