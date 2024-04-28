@@ -1,4 +1,5 @@
 #include "Mesh.h"
+#include "log/log.h"
 
 Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures) : Node()
 {
@@ -51,7 +52,6 @@ void Mesh::Draw(Shader &shader)
 		shader.setMat4("model", Parent->GetModelMatrix() * this->GetModelMatrix());
     for(unsigned int i = 0; i < textures.size(); i++)
     {
-        glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
         // retrieve texture number (the N in diffuse_textureN)
         std::string number;
         std::string name = textures[i].type;
@@ -62,12 +62,14 @@ void Mesh::Draw(Shader &shader)
         else if(name == "texture_height")
             number = std::to_string(normalNr++);
 
-				std::string debug(("material." + name + number).c_str());
+        glActiveTexture(GL_TEXTURE1 + i); // activate proper texture unit before binding
+
+				//std::string debug(("material." + name + number).c_str());
 				//std::cout << "dbg: " << debug << std::endl;
-        shader.setInt(("material." + name + number).c_str(), i);
+        shader.setInt(("material." + name + number).c_str(), i + 1);
         glBindTexture(GL_TEXTURE_2D, textures[i].id);
     }
-    glActiveTexture(GL_TEXTURE0);
+    //glActiveTexture(GL_TEXTURE1);
 
     // draw mesh
     glBindVertexArray(VAO);

@@ -70,7 +70,7 @@ void Game::Setup() {
   light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.5f),
                                       glm::vec3(1));
 	light->Transform.position = glm::vec3(0, 2000, 0);
-	light->Transform.rotation = glm::vec3(-90, 0, 0);
+	light->Transform.rotation = glm::vec3(-70, 0, 0);
 
 	light->Transform.scale = glm::vec3(10);
 
@@ -161,7 +161,6 @@ void Game::ProcessInput() {
 
 
 void RenderScene(Shader* shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
-  shader->use();
   shader->setVec3("viewPos", camera->Position);
 
   light->Draw(*shader);
@@ -327,8 +326,10 @@ void Game::Render() {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
 
 
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
@@ -341,18 +342,20 @@ void Game::Render() {
 	// Render Scene From Light Perspective
 
 	//glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glCullFace(GL_FRONT);
   glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
   glClear(GL_DEPTH_BUFFER_BIT);
 
 	glm::vec3 lookPos = camera->Position;
 	float nearPlane = 0.1f;
-	float farPlane = 2500.0f;
-	float height = renderHeight;
-	float width = renderWitdh;
+	float farPlane = 3000.0f;
+	float height = renderHeight * 4;
+	float width = renderWitdh * 4;
 
 	glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, nearPlane, farPlane);
 	glm::mat4 view = light->GetViewMatrix();
 
+	shadowShader->use();
 	RenderScene(shadowShader, orthoProjection ,view);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -362,6 +365,8 @@ void Game::Render() {
 
 	// Render Scene Lit
 
+	//glViewport(0, 0, renderWitdh * 2, renderHeight * 2);
+	glCullFace(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
 
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, vpOutTex, 0);
@@ -376,6 +381,15 @@ void Game::Render() {
 
   glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)renderWitdh / (float)renderHeight, 0.1f, 10000.0f);
 	view = camera->GetViewMatrix();
+
+	defaultShader->use();
+
+	defaultShader->setInt("shadowMap", 0);
+	defaultShader->setMat4("lightProjection", orthoProjection);
+	defaultShader->setMat4("lightView", light->GetViewMatrix());
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, shadowMapOutTex);
 
 	RenderScene(defaultShader, projection, view);
 
