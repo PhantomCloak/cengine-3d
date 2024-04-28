@@ -168,35 +168,6 @@ void Game::Render() {
 	// Skybox
 	static unsigned int skyboxVAO = -1, skyboxVBO = -1, skyboxCubeTextureId = -1;
 
-	// Light Cube
-	static unsigned int lightCubeVAO = -1;
-  static unsigned int cubeVBO = -1, cubeVAO = - 1;
-
-	if(cubeVAO == -1 && cubeVBO == -1 && lightCubeVAO == -1)
-	{
-		glGenVertexArrays(1, &cubeVAO);
-  	glGenBuffers(1, &cubeVBO);
-
-  	glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-  	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-  	glBindVertexArray(cubeVAO);
-  	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
-  	glEnableVertexAttribArray(0);
-  	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
-  	glEnableVertexAttribArray(1);
-  	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
-  	glEnableVertexAttribArray(2);
-
-  	glGenVertexArrays(1, &lightCubeVAO);
-  	glBindVertexArray(lightCubeVAO);
-
-  	glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-
-  	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
-  	glEnableVertexAttribArray(0);
-	}
-
 	if(skyboxVBO == -1 && skyboxVBO == -1 && skyboxCubeTextureId == -1)
 	{
   	glGenVertexArrays(1, &skyboxVAO);
@@ -274,6 +245,8 @@ void Game::Render() {
   glDepthFunc(GL_LESS);
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Render Scene From Light
 
   renderer->textureColorbuffer = viewportFboOutTex;
   renderer->depthBuffer = viewportDepthFboOutTex;
