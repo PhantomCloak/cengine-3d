@@ -19,4 +19,6 @@ class DirectionalLight : public Node {
 		};
 
 		void Draw(Shader &shader);
+		
+		glm::mat4 GetViewMatrix();
 };

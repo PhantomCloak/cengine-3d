@@ -18,9 +18,9 @@ void EntityInspector::RenderWindow() {
 
             ImGui::BeginGroupPanel("Transform");
 
-            ImGui::InputFloat(_labelPrefix("pos x:").c_str(), &selectedNode->Transform.pos.x, 1);
-            ImGui::InputFloat(_labelPrefix("pos y:").c_str(), &selectedNode->Transform.pos.y, 1);
-            ImGui::InputFloat(_labelPrefix("pos z:").c_str(), &selectedNode->Transform.pos.z, 1);
+            ImGui::InputFloat(_labelPrefix("pos x:").c_str(), &selectedNode->Transform.position.x, 1);
+            ImGui::InputFloat(_labelPrefix("pos y:").c_str(), &selectedNode->Transform.position.y, 1);
+            ImGui::InputFloat(_labelPrefix("pos z:").c_str(), &selectedNode->Transform.position.z, 1);
 
             ImGui::Spacing();
             ImGui::Spacing();

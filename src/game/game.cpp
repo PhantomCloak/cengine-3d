@@ -13,7 +13,6 @@
 #include "render/backends/opengl/Model.h"
 #include "render/backends/opengl/Shader.h"
 #include "constants.h"
-#include <glm/gtc/matrix_transform.hpp>
 
 #if EDITOR
 #include "editor/editor.h"
@@ -23,6 +22,8 @@
 Shader *defaultShader;
 Shader *drawCubeShader;
 Shader *skyboxShader;
+Shader *unlitShader;
+
 Ref<Model> sampleModel;
 Ref<Model> lightModel;
 Camera *camera;
@@ -31,6 +32,7 @@ Game::Game() {
   isRunning = false;
   Log::Inf("Game Constructor Called");
 }
+float yaw = 0, pitch = 0;
 
 Game::~Game() { Log::Inf("Game Deconstructor Called"); }
 
@@ -62,15 +64,17 @@ void Game::Setup() {
   Log::Warn("Engine is starting");
 
   camera = new Camera(glm::vec3(0.0f, 2.0f, 3.0f));
-	static glm::vec3 lightPos(0.0f, 500.0f, 0.0f);
 
   light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.5f),
                                       glm::vec3(1));
-	light->Transform.pos = lightPos;
+	light->Transform.position = glm::vec3(0, 2000, 0);
+	light->Transform.rotation = glm::vec3(-90, 0, 0);
+
 	light->Transform.scale = glm::vec3(10);
 
   defaultShader = new Shader("assets/shaders/default.vs", "assets/shaders/default.fs");
   skyboxShader = new Shader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
+  unlitShader = new Shader("assets/shaders/unlit.vs", "assets/shaders/unlit.fs");
 
   sampleModel = CreateRef<Model>("assets/models/sponza.obj");
   lightModel = CreateRef<Model>("assets/models/cube.obj");
@@ -97,6 +101,12 @@ void Game::Update() {
   Keyboard::FlushPressedKeys();
 }
 
+//g
+//GGkkkkkkklm::vec2 eulerToYawPitch(const glm::vec3& euler) {
+//    float yaw = glm::degrees(glm::yaw(euler));
+//    float pitch = glm::degrees(glm::pitch(euler));
+//    return glm::vec2(yaw, pitch);
+//}
 
 void Game::ProcessInput() {
 	static glm::vec2 lastCpos = glm::vec2(0);
@@ -120,12 +130,23 @@ void Game::ProcessInput() {
   } else if (Keyboard::IsKeyPressing(Key_C)) {
     camera->ProcessKeyboard(DOWN, 1.1f * mulSpeed);
   } else if (Keyboard::IsKeyPressing(Key_Q)) {
-    camera->Yaw += 1.0f;
+		yaw += 1.0f;
+    //camera->Yaw += 1.0f;
     camera->updateCameraVectors();
   } else if (Keyboard::IsKeyPressing(Key_E)) {
-    camera->Yaw -= 1.0f;
+    //camera->Yaw -= 1.0f;
+		yaw -= 1.0f;
     camera->updateCameraVectors();
-  }
+  } else if(Keyboard::IsKeyPressing(Key_H))
+	{
+		pitch += 1.0f;
+
+	} else if(Keyboard::IsKeyPressing(Key_J))
+	{
+		pitch -= 1.0f;
+
+	}
+
 
 	if(Editor::Instance->viewport->IsFocused())
 		camera->ProcessMouseMovement(cposOffset.x, cposOffset.y);
@@ -136,25 +157,23 @@ void Game::ProcessInput() {
 
 
 void RenderScene(Shader* shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
-  defaultShader->use();
-  defaultShader->setVec3("viewPos", camera->Position);
+  shader->use();
+  shader->setVec3("viewPos", camera->Position);
 
-  light->Draw(*defaultShader);
+  light->Draw(*shader);
 
-  defaultShader->setFloat("material.shininess", 64.0f);
+  shader->setFloat("material.shininess", 64.0f);
 
-  defaultShader->setMat4("projection", projectionMat);
-  defaultShader->setMat4("view", viewMat);
+  shader->setMat4("projection", projectionMat);
+  shader->setMat4("view", viewMat);
 
-  sampleModel->Draw(*defaultShader);
+  sampleModel->Draw(*shader);
 
 	lightModel->Transform = light->Transform;
-	lightModel->Draw(*defaultShader);
+	lightModel->Draw(*shader);
 }
 
 void Game::Render() {
-	static glm::vec3 cubePos(0.0f, 0.0f, 0.0f);
-
   int renderWitdh = CommancheRenderer::screenWidth;
   int renderHeight = CommancheRenderer::screenHeight;
 
@@ -275,24 +294,29 @@ void Game::Render() {
 
   glBindFramebuffer(GL_FRAMEBUFFER, lightFbo);
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, lightOutTex, 0);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, lightOutTex, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  glDepthFunc(GL_LEQUAL);
-	
-	// return glm::lookAt(Position, Position + Front, Up);
+	glDepthFunc(GL_LEQUAL);
 
 	glm::vec3 lookPos = camera->Position;
-	//lookPos.y += 250;
-	//view = glm::lookAt(lookPos, lookPos + camera->Front, camera->Up);
 
-	RenderScene(defaultShader, projection ,view);
-	
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	float aspectRatio = 1.7777777778f;
+	float nearPlane = 0.1f;
+	float farPlane = 10000.0f;
+	float height = renderHeight;
+	float width = renderWitdh;
 
-  renderer->textureColorbuffer = vpOutTex;
-  renderer->depthBuffer = vpDepthOutTex;
-  renderer->lightBuffer = lightOutTex;
+	glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, nearPlane, farPlane);
+	view = light->GetViewMatrix();
+
+	RenderScene(unlitShader, orthoProjection ,view);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	renderer->textureColorbuffer = vpOutTex;
+	renderer->depthBuffer = vpDepthOutTex;
+	renderer->lightBuffer = lightOutTex;
 }
 
 void Game::Destroy() { isRunning = false; }
