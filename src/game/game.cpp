@@ -19,7 +19,7 @@
 #endif
 
 
-Shader *lightingShader;
+Shader *defaultShader;
 Shader *lightCubeShader;
 Shader *skyboxShader;
 Ref<Model> sampleModel;
@@ -64,7 +64,7 @@ void Game::Setup() {
   light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.5f),
                                       glm::vec3(1));
 
-  lightingShader = new Shader("assets/shaders/default.vs", "assets/shaders/default.fs");
+  defaultShader = new Shader("assets/shaders/default.vs", "assets/shaders/default.fs");
   lightCubeShader = new Shader("assets/shaders/light_cube.vs", "assets/shaders/light_cube.fs");
   skyboxShader = new Shader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
 
@@ -129,6 +129,10 @@ void Game::ProcessInput() {
   Keyboard::Poll();
 }
 
+
+void RenderScene() {
+
+}
 
 void Game::Render() {
 	static glm::vec3 lightPos(0.0f, 500.0f, 0.0f);
@@ -236,27 +240,25 @@ void Game::Render() {
 
 
 
-  lightingShader->use();
-  lightingShader->setVec3("lightPos", lightPos);
-  lightingShader->setVec3("light.position", lightPos);
-  lightingShader->setVec3("viewPos", camera->Position);
+  defaultShader->use();
+  defaultShader->setVec3("viewPos", camera->Position);
 
-  light->Draw(*lightingShader);
+  light->Draw(*defaultShader);
 
-  lightingShader->setFloat("material.shininess", 124.0f);
+  defaultShader->setFloat("material.shininess", 124.0f);
 
   glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)renderWitdh / (float)renderHeight, 0.1f, 10000.0f);
 
   glm::mat4 view = camera->GetViewMatrix();
-  lightingShader->setMat4("projection", projection);
-  lightingShader->setMat4("view", view);
+  defaultShader->setMat4("projection", projection);
+  defaultShader->setMat4("view", view);
 
   glm::mat4 mainCubeTransform = glm::mat4(1.0f);
   mainCubeTransform = glm::translate(mainCubeTransform, cubePos);
   mainCubeTransform = glm::scale(mainCubeTransform, glm::vec3(1));
-  lightingShader->setMat4("model", mainCubeTransform);
+  defaultShader->setMat4("model", mainCubeTransform);
 
-  sampleModel->Draw(*lightingShader);
+  sampleModel->Draw(*defaultShader);
 
   glm::mat4 cameraTransform = glm::mat4(1.0f);
   cameraTransform = glm::translate(cameraTransform, lightPos);
@@ -269,6 +271,7 @@ void Game::Render() {
 
   glBindVertexArray(lightCubeVAO);
   glDrawArrays(GL_TRIANGLES, 0, 36);
+
 
   glDepthFunc(GL_LEQUAL);
 

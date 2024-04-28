@@ -129,5 +129,11 @@ void EditorViewPort::RenderWindow() {
 	}
 	ImGui::End();
 
+	if (ImGui::Begin("Ligh Buffer", &Open, ImGuiWindowFlags_NoNav)) { 
+		int frameId = CommancheRenderer::Instance->depthBuffer;
+		Fit2(frameId, 1920, 1080);
+	}
+	ImGui::End();
+
 	ImGui::PopStyleVar();
 }
