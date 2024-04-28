@@ -2,7 +2,7 @@
 
 
 void DirectionalLight::Draw(Shader& shader) {
-	shader.setVec3("light.position", this->Transform.pos);
+	shader.setVec3("lightPos", this->Transform.pos);
 	shader.setVec3("light.ambient", Ambient);
 	shader.setVec3("light.diffuse", Diffuse);
 	shader.setVec3("light.specular", Specular);

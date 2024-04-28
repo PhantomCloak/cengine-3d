@@ -112,6 +112,7 @@ void CommancheRenderer::Initialize(const std::string& title, int windowWidth, in
     //glEnable(GL_DEPTH_TEST);
 
     glGenFramebuffers(1, &fboDefaultRenderPass);
+		glfwMaximizeWindow(k_window);
 }
 
 void CommancheRenderer::InitializeShaders(const std::string& defaultShaderPath) {

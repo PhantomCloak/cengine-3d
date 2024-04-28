@@ -48,6 +48,7 @@ void Mesh::Draw(Shader &shader)
     unsigned int specularNr = 1;
     unsigned int normalNr = 1;
 
+		shader.setMat4("model", Parent->GetModelMatrix() * this->GetModelMatrix());
     for(unsigned int i = 0; i < textures.size(); i++)
     {
         glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
@@ -62,7 +63,6 @@ void Mesh::Draw(Shader &shader)
             number = std::to_string(normalNr++);
 
 				std::string debug(("material." + name + number).c_str());
-				shader.setMat4("model", Parent->GetModelMatrix() * this->GetModelMatrix());
 				//std::cout << "dbg: " << debug << std::endl;
         shader.setInt(("material." + name + number).c_str(), i);
         glBindTexture(GL_TEXTURE_2D, textures[i].id);

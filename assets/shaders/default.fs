@@ -77,9 +77,9 @@ void main()
 	float specularIntensity = texture(material.texture_specular1, TexCoords).r;
 	vec3 specular = light.specular * spec * specularIntensity;
 
-	ambient  *= attenuation * 2; 
-	diffuse  *= attenuation * 2;
-	specular *= attenuation * 2;
+	//ambient  *= attenuation; 
+	//diffuse  *= attenuation;
+	//specular *= attenuation;
 
 	vec3 result = ambient + diffuse + specular;
 

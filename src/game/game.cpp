@@ -20,10 +20,10 @@
 
 
 Shader *defaultShader;
-Shader *lightCubeShader;
+Shader *drawCubeShader;
 Shader *skyboxShader;
 Ref<Model> sampleModel;
-Ref<Model> sampleModel2;
+Ref<Model> lightModel;
 Camera *camera;
 
 Game::Game() {
@@ -61,18 +61,22 @@ void Game::Setup() {
   Log::Warn("Engine is starting");
 
   camera = new Camera(glm::vec3(0.0f, 2.0f, 3.0f));
+	static glm::vec3 lightPos(0.0f, 500.0f, 0.0f);
+
   light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.5f),
                                       glm::vec3(1));
+	light->Transform.pos = lightPos;
+	light->Transform.scale = glm::vec3(10);
 
   defaultShader = new Shader("assets/shaders/default.vs", "assets/shaders/default.fs");
-  lightCubeShader = new Shader("assets/shaders/light_cube.vs", "assets/shaders/light_cube.fs");
   skyboxShader = new Shader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
 
   sampleModel = CreateRef<Model>("assets/models/sponza.obj");
+  lightModel = CreateRef<Model>("assets/models/cube.obj");
 
   Root->AddChild(sampleModel);
   Root->AddChild(light);
-
+  Root->AddChild(lightModel);
 }
 
 void Game::Update() {
@@ -130,12 +134,24 @@ void Game::ProcessInput() {
 }
 
 
-void RenderScene() {
+void RenderScene(Shader* shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
+  defaultShader->use();
+  defaultShader->setVec3("viewPos", camera->Position);
 
+  light->Draw(*defaultShader);
+
+  defaultShader->setFloat("material.shininess", 64.0f);
+
+  defaultShader->setMat4("projection", projectionMat);
+  defaultShader->setMat4("view", viewMat);
+
+  sampleModel->Draw(*defaultShader);
+
+	lightModel->Transform = light->Transform;
+	lightModel->Draw(*defaultShader);
 }
 
 void Game::Render() {
-	static glm::vec3 lightPos(0.0f, 500.0f, 0.0f);
 	static glm::vec3 cubePos(0.0f, 0.0f, 0.0f);
 
   int renderWitdh = CommancheRenderer::screenWidth;
@@ -238,40 +254,10 @@ void Game::Render() {
   glClearColor(0.0f, 0.13f, 0.0, 1.0f);
   glEnable(GL_DEPTH_TEST);
 
-
-
-  defaultShader->use();
-  defaultShader->setVec3("viewPos", camera->Position);
-
-  light->Draw(*defaultShader);
-
-  defaultShader->setFloat("material.shininess", 124.0f);
-
   glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)renderWitdh / (float)renderHeight, 0.1f, 10000.0f);
+	glm::mat4 view = camera->GetViewMatrix();
 
-  glm::mat4 view = camera->GetViewMatrix();
-  defaultShader->setMat4("projection", projection);
-  defaultShader->setMat4("view", view);
-
-  glm::mat4 mainCubeTransform = glm::mat4(1.0f);
-  mainCubeTransform = glm::translate(mainCubeTransform, cubePos);
-  mainCubeTransform = glm::scale(mainCubeTransform, glm::vec3(1));
-  defaultShader->setMat4("model", mainCubeTransform);
-
-  sampleModel->Draw(*defaultShader);
-
-  glm::mat4 cameraTransform = glm::mat4(1.0f);
-  cameraTransform = glm::translate(cameraTransform, lightPos);
-  cameraTransform = glm::scale(cameraTransform, glm::vec3(10));
-
-  lightCubeShader->use();
-  lightCubeShader->setMat4("projection", projection);
-  lightCubeShader->setMat4("view", view);
-  lightCubeShader->setMat4("model", cameraTransform);
-
-  glBindVertexArray(lightCubeVAO);
-  glDrawArrays(GL_TRIANGLES, 0, 36);
-
+	RenderScene(defaultShader, projection, view);
 
   glDepthFunc(GL_LEQUAL);
 
