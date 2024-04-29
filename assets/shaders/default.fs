@@ -1,7 +1,8 @@
 #version 330 core
 
-out vec4 FragColor;
-out vec4 DepthColor;
+layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 DepthColor;
+layout(location = 2) out vec4 BrightColor;
 
 in vec3 Normal;  
 in vec3 FragPos;
@@ -77,7 +78,8 @@ void main()
 {
 	float gamma = 2.2;
 	float distance = length(LightPos - FragPos);
-	vec4 textureColor = pow(texture(material.texture_diffuse1, TexCoords), vec4(gamma));
+	vec4 textureColor = texture(material.texture_diffuse1, TexCoords);
+	//vec4 textureColor = pow(texture(material.texture_diffuse1, TexCoords), vec4(gamma));
 	//pow(texture(diffuse, texCoords).rgb, vec3(gamma));
 
 	// Hack
@@ -110,8 +112,13 @@ void main()
 
 
 	FragColor = vec4(resultLight, 1.0);
+	BrightColor =  FragColor;
 
 	float depth = LinearizeDepth(gl_FragCoord.z) / far; // divide by far for demonstration
     DepthColor = vec4(vec3(depth), 1.0);
+
+	//float brightness = dot(FragColor.rgb, vec3(0.4126, 0.9152, 0.1122));
+	//vec3 intensity = vec3(length(FragColor.rgb)); // Calculate intensity
+	//BrightColor =  vec4(intensity, 1.0);
 }
 

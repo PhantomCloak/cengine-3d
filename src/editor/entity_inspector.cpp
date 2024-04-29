@@ -68,7 +68,14 @@ void EntityInspector::RenderWindow() {
 							ImGui::EndGroupPanel();
 						}
 
-        }
-        ImGui::End();
-    }
+				}
+				ImGui::End();
+
+				if (ImGui::Begin("POST FX Settings")) {
+						ImGui::Checkbox("Gamma Correction: ", &ppfxSettings["gamma_correction"]);
+						ImGui::Checkbox("Use Reinhard: ", &ppfxSettings["use_reinhard"]);
+						ImGui::InputFloat("Exposure: ", &exposure, 0.1);
+				}
+				ImGui::End();
+		}
 }

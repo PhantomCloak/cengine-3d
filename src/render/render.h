@@ -52,7 +52,7 @@ class CommancheRenderer {
 		
 		int textureId;
 
-    unsigned int framebuffer, textureColorbuffer, depthBuffer, lightBuffer;
+    unsigned int framebuffer, textureColorbuffer, depthBuffer, lightBuffer, hdrBuffer;
     private:
 		std::vector<OnViewportChange> _callbackList;
 };

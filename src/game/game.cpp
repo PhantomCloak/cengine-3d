@@ -25,6 +25,7 @@ Shader *skyboxShader;
 Shader *unlitShader;
 Shader *shadowShader;
 Shader *debugShader;
+Shader *hdrShader;
 
 Ref<Model> sampleModel;
 Ref<Model> lightModel;
@@ -79,6 +80,7 @@ void Game::Setup() {
   unlitShader = new Shader("assets/shaders/unlit.vs", "assets/shaders/unlit.fs");
   shadowShader = new Shader("assets/shaders/shadow.vs", "assets/shaders/shadow.fs");
   debugShader = new Shader("assets/shaders/debug.vs", "assets/shaders/debug.fs");
+  hdrShader = new Shader("assets/shaders/hdr.vs", "assets/shaders/hdr.fs");
 
   sampleModel = CreateRef<Model>("assets/models/sponza.obj");
   lightModel = CreateRef<Model>("assets/models/cube.obj");
@@ -105,13 +107,7 @@ void Game::Update() {
   Keyboard::FlushPressedKeys();
 }
 
-//g
-//GGkkkkkkklm::vec2 eulerToYawPitch(const glm::vec3& euler) {
-//    float yaw = glm::degrees(glm::yaw(euler));
-//    float pitch = glm::degrees(glm::pitch(euler));
-//    return glm::vec2(yaw, pitch);
-//}
-
+bool updateShadows = false;
 void Game::ProcessInput() {
 	static glm::vec2 lastCpos = glm::vec2(0);
   glm::vec2 cpos = Cursor::GetCursorPosition();
@@ -121,35 +117,40 @@ void Game::ProcessInput() {
   cposOffset.y = cpos.y - lastCpos.y;
   const float mulSpeed = 5.0f;
 
-  if (Keyboard::IsKeyPressing(Key_W)) {
-    camera->ProcessKeyboard(FORWARD, 1.1f * mulSpeed);
-  } else if (Keyboard::IsKeyPressing(Key_S)) {
-    camera->ProcessKeyboard(BACKWARD, 1.1f * mulSpeed);
-  } else if (Keyboard::IsKeyPressing(Key_A)) {
-    camera->ProcessKeyboard(LEFT, 1.1f * mulSpeed);
-  } else if (Keyboard::IsKeyPressing(Key_D)) {
-    camera->ProcessKeyboard(RIGHT, 1.1f * mulSpeed);
-  } else if (Keyboard::IsKeyPressing(Key_SPACE)) {
-    camera->ProcessKeyboard(UP, 1.1f * mulSpeed);
-  } else if (Keyboard::IsKeyPressing(Key_C)) {
-    camera->ProcessKeyboard(DOWN, 1.1f * mulSpeed);
-  } else if (Keyboard::IsKeyPressing(Key_Q)) {
+	if (Keyboard::IsKeyPressing(Key_W)) {
+		camera->ProcessKeyboard(FORWARD, 1.1f * mulSpeed);
+	} else if (Keyboard::IsKeyPressing(Key_S)) {
+		camera->ProcessKeyboard(BACKWARD, 1.1f * mulSpeed);
+	} else if (Keyboard::IsKeyPressing(Key_A)) {
+		camera->ProcessKeyboard(LEFT, 1.1f * mulSpeed);
+	} else if (Keyboard::IsKeyPressing(Key_D)) {
+		camera->ProcessKeyboard(RIGHT, 1.1f * mulSpeed);
+	} else if (Keyboard::IsKeyPressing(Key_SPACE)) {
+		camera->ProcessKeyboard(UP, 1.1f * mulSpeed);
+	} else if (Keyboard::IsKeyPressing(Key_C)) {
+		camera->ProcessKeyboard(DOWN, 1.1f * mulSpeed);
+	} else if (Keyboard::IsKeyPressing(Key_Q)) {
 		yaw += 1.0f;
-    //camera->Yaw += 1.0f;
-    camera->updateCameraVectors();
-  } else if (Keyboard::IsKeyPressing(Key_E)) {
-    //camera->Yaw -= 1.0f;
+		//camera->Yaw += 1.0f;
+		camera->updateCameraVectors();
+	} else if (Keyboard::IsKeyPressing(Key_E)) {
+		//camera->Yaw -= 1.0f;
 		yaw -= 1.0f;
-    camera->updateCameraVectors();
-  } else if(Keyboard::IsKeyPressing(Key_H))
+		camera->updateCameraVectors();
+	} else if(Keyboard::IsKeyPressing(Key_H))
 	{
 		pitch += 1.0f;
 
 	} else if(Keyboard::IsKeyPressing(Key_J))
 	{
 		pitch -= 1.0f;
-
 	}
+	else if(Keyboard::IsKeyPressing(Key_F))
+	{
+		updateShadows = true;
+	}
+
+
 
 
 	if(Editor::Instance->viewport->IsFocused())
@@ -176,7 +177,64 @@ void RenderScene(Shader* shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
 	lightModel->Draw(*shader);
 }
 
-int DebugRenderOffScreenImage(int renderWitdh, int renderHeight, int textureId) {
+int RenderDebug(int renderWidth, int renderHeight, int textureId) {
+	static unsigned int quadVAO = -1, quadVBO = -1;
+	static unsigned int hdrFbo = -1, hdrOutTex = -1;
+
+	if(quadVAO == -1 && quadVBO == -1)
+	{
+		glGenVertexArrays(1, &quadVAO);
+		glGenBuffers(1, &quadVBO);
+		glBindVertexArray(quadVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	}
+
+	if(hdrFbo == -1)
+	{
+    glGenFramebuffers(1, &hdrFbo);
+    glGenTextures(1, &hdrOutTex);
+
+
+		glBindTexture(GL_TEXTURE_2D, hdrOutTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, renderWidth, renderHeight, 0, GL_RGBA, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+
+
+	glBindFramebuffer(GL_FRAMEBUFFER, hdrFbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrOutTex, 0); // Set Output Tex
+	glClear(GL_COLOR_BUFFER_BIT);
+
+
+	hdrShader->use();
+	hdrShader->setInt("image", 0);
+	hdrShader->setBool("gamma_correction", Editor::Instance->entityInspector->ppfxSettings["gamma_correction"]);
+	hdrShader->setBool("use_reinhard", Editor::Instance->entityInspector->ppfxSettings["use_reinhard"]);
+	hdrShader->setFloat("exposure", Editor::Instance->entityInspector->ppfxSettings["exposure"]);
+
+	// Set Input Tex
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, textureId);
+
+	// Draw
+	glBindVertexArray(quadVAO);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glBindVertexArray(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return hdrOutTex;
+}
+
+int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
 	static unsigned int debugFbo = -1, debugOutTex = -1, quadVBO = -1, quadVAO = -1;
 
 	if(quadVAO == -1 && quadVBO == -1)
@@ -211,7 +269,7 @@ int DebugRenderOffScreenImage(int renderWitdh, int renderHeight, int textureId) 
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	float nearPlane = 0.1f;
-	float farPlane = 2500.0f;
+	float farPlane = 4000.0f;
 
 	debugShader->use();
 	debugShader->setInt("image", 0);
@@ -237,28 +295,35 @@ void Game::Render() {
   int renderHeight = CommancheRenderer::screenHeight;
 
 	// Viewport
-	static unsigned int vpFbo = -1, vpDepthAttachmentBuff = -1, vpOutTex = -1, vpDepthOutTex = -1;
+	static unsigned int vpFbo = -1, vpDepthRbo = -1, vpOutTex = -1, vpDepthOutTex = -1, vpBrightOutTex = -1;
 
 	// Skybox
 	static unsigned int skyboxVAO = -1, skyboxVBO = -1, skyboxCubeTextureId = -1;
 
 	// Light
-	//static unsigned int lightFbo = -1,lightDepthAttachmentBuff = -1, lightOutTex = -1;
 	static unsigned int shadowMapFbo = -1, shadowMapOutTex = -1;
+	static bool shadowInitial = false;
 
   if (vpFbo == -1) {
     glGenFramebuffers(1, &vpFbo);
 
     glGenTextures(1, &vpOutTex);
     glGenTextures(1, &vpDepthOutTex);
+    glGenTextures(1, &vpBrightOutTex);
 
     glBindTexture(GL_TEXTURE_2D, vpOutTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+    glBindTexture(GL_TEXTURE_2D, vpBrightOutTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, renderWitdh, renderHeight, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     glBindTexture(GL_TEXTURE_2D, vpDepthOutTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -267,12 +332,12 @@ void Game::Render() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glGenRenderbuffers(1, &vpDepthAttachmentBuff);
-    glBindRenderbuffer(GL_RENDERBUFFER, vpDepthAttachmentBuff);
+    glGenRenderbuffers(1, &vpDepthRbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, vpDepthRbo);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, renderWitdh, renderHeight);
 
     glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, vpDepthAttachmentBuff);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, vpDepthRbo);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
@@ -291,30 +356,6 @@ void Game::Render() {
 		                              "skybox/front.jpg", "skybox/back.jpg"};
 		skyboxCubeTextureId = AssetManager::LoadCubeMap(faces);
 	}
-
-	//if(lightFbo == -1 && lightOutTex == -1)
-	//{
-  //  glGenFramebuffers(1, &lightFbo);
-  //  glGenTextures(1, &lightOutTex);
-
-
-  //  glBindTexture(GL_TEXTURE_2D, lightOutTex);
-  //  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderWitdh, renderHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-  //  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  //  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  //  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  //  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  //  glBindTexture(GL_TEXTURE_2D, 0);
-
-
-  //  glGenRenderbuffers(1, &lightDepthAttachmentBuff);
-  //  glBindRenderbuffer(GL_RENDERBUFFER, lightDepthAttachmentBuff);
-  //  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, renderWitdh, renderHeight);
-
-  //  glBindFramebuffer(GL_FRAMEBUFFER, lightFbo);
-  //  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, lightDepthAttachmentBuff);
-  //  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//}
 
 	const unsigned int SHADOW_WIDTH = 1024 * 5, SHADOW_HEIGHT = 1024 * 5;
 	if(shadowMapFbo == -1 && shadowMapOutTex == -1)
@@ -341,46 +382,55 @@ void Game::Render() {
 
 	// Render Scene From Light Perspective
 
-	glCullFace(GL_FRONT);
-  glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
-	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-  glClear(GL_DEPTH_BUFFER_BIT);
+	glm::mat4 view;
 
-	glm::vec3 lookPos = camera->Position;
 	float nearPlane = 0.1f;
 	float farPlane = 4000.0f;
-
-	//float height = renderHeight * 4;
-	//float width = renderWitdh * 4;
 
 	float height = SHADOW_HEIGHT;
 	float width = SHADOW_WIDTH;
 
 	glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, nearPlane, farPlane);
-	//glm::mat4 orthoProjection = glm::ortho(0.0f, width, 0.0f, height, nearPlane, farPlane);
-	glm::mat4 view = light->GetViewMatrix();
 
-	shadowShader->use();
-	RenderScene(shadowShader, orthoProjection ,view);
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	if(!shadowInitial || updateShadows)
+	{
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  //glViewport(0, 0, renderWitdh * 2, renderHeight * 2);
+		glCullFace(GL_FRONT);
+		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
+		glClear(GL_DEPTH_BUFFER_BIT);
 
-	int debugTexture = DebugRenderOffScreenImage(SHADOW_WIDTH, SHADOW_HEIGHT, shadowMapOutTex);
+		glm::vec3 lookPos = camera->Position;
+		view = light->GetViewMatrix();
+
+		shadowShader->use();
+		RenderScene(shadowShader, orthoProjection ,view);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		shadowInitial = true;
+		updateShadows = false;
+	}
+
+	view = light->GetViewMatrix();
+
+	int debugTexture = RenderDepthToTexture(SHADOW_WIDTH, SHADOW_HEIGHT, shadowMapOutTex);
 
 	// Render Scene Lit
 
 	glCullFace(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
-	glViewport(0, 0, renderWitdh * 2, renderHeight * 2);
+	glViewport(0, 0, renderWitdh, renderHeight);
 
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, vpOutTex, 0);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, vpDepthOutTex, 0);
-	GLenum drawBuffers2[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-	glDrawBuffers(2, drawBuffers2);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, vpBrightOutTex, 0);
+
+	GLenum drawBuffers2[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+	glDrawBuffers(3, drawBuffers2);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glViewport(0, 0, renderWitdh, renderHeight);
+  //glViewport(0, 0, renderWitdh, renderHeight);
   glClearColor(0.0f, 0.13f, 0.0, 1.0f);
   glEnable(GL_DEPTH_TEST);
 
@@ -398,6 +448,9 @@ void Game::Render() {
 
 	RenderScene(defaultShader, projection, view);
 
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	int debugHdrTexture = RenderDebug(renderWitdh, renderHeight, vpBrightOutTex);
 
   // Render Skybox
 
@@ -419,8 +472,8 @@ void Game::Render() {
 
 	renderer->textureColorbuffer = vpOutTex;
 	renderer->depthBuffer = vpDepthOutTex;
-	//renderer->lightBuffer = lightOutTex;
 	renderer->lightBuffer = debugTexture;
+	renderer->hdrBuffer = debugHdrTexture;
 }
 
 void Game::Destroy() { isRunning = false; }

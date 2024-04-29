@@ -20,12 +20,12 @@ class Editor {
     std::shared_ptr<EditorViewPort> viewport;
     std::shared_ptr<SceneHierarchy> sceneList;
     static std::shared_ptr<Editor> Instance;
+    std::shared_ptr<EntityInspector> entityInspector;
     private:
     void Keybindings();
     FileView* fileView;
     SystemExplorer* explorer;
     std::shared_ptr<LogView> logView;
-    std::shared_ptr<EntityInspector> entityInspector;
     std::unique_ptr<CommancheRenderer> renderer;
     std::shared_ptr<EditorMenuBar> menuBar;
 };
