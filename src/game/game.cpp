@@ -26,6 +26,9 @@ Shader *unlitShader;
 Shader *shadowShader;
 Shader *debugShader;
 Shader *hdrShader;
+Shader *kawaseUpsample;
+Shader *kawaseDownsample;
+Shader *bloomShader;
 
 Ref<Model> sampleModel;
 Ref<Model> lightModel;
@@ -68,10 +71,11 @@ void Game::Setup() {
 
   camera = new Camera(glm::vec3(0.0f, 2.0f, 3.0f));
 
-  light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.5f),
+	light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.3f),
                                       glm::vec3(1));
 	light->Transform.position = glm::vec3(0, 3000, 0);
 	light->Transform.rotation = glm::vec3(-66, 28, 0);
+	//light->Transform.rotation = glm::vec3(1, 0, 0);
 
 	light->Transform.scale = glm::vec3(10);
 
@@ -81,6 +85,10 @@ void Game::Setup() {
   shadowShader = new Shader("assets/shaders/shadow.vs", "assets/shaders/shadow.fs");
   debugShader = new Shader("assets/shaders/debug.vs", "assets/shaders/debug.fs");
   hdrShader = new Shader("assets/shaders/hdr.vs", "assets/shaders/hdr.fs");
+  bloomShader = new Shader("assets/shaders/bloom.vs", "assets/shaders/bloom.fs");
+
+  kawaseUpsample = new Shader("assets/shaders/kawase.vs", "assets/shaders/kawase_upsample.fs");
+  kawaseDownsample = new Shader("assets/shaders/kawase.vs", "assets/shaders/kawase_downsample.fs");
 
   sampleModel = CreateRef<Model>("assets/models/sponza.obj");
   lightModel = CreateRef<Model>("assets/models/cube.obj");
@@ -177,9 +185,16 @@ void RenderScene(Shader* shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
 	lightModel->Draw(*shader);
 }
 
-int RenderDebug(int renderWidth, int renderHeight, int textureId) {
+struct BlurTexture {
+	unsigned int TextureId;
+	int Width;
+	int Height;
+};
+
+int TurboBlur(int renderWidth, int renderHeight, int brightTexture, int sampleCount, BlurTexture* blurTex, int sceneTexture) {
 	static unsigned int quadVAO = -1, quadVBO = -1;
 	static unsigned int hdrFbo = -1, hdrOutTex = -1;
+	static unsigned int bloomFbo = -1, bloomOutTex = -1;
 
 	if(quadVAO == -1 && quadVBO == -1)
 	{
@@ -206,6 +221,16 @@ int RenderDebug(int renderWidth, int renderHeight, int textureId) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glGenFramebuffers(1, &bloomFbo);
+    glGenTextures(1, &bloomOutTex);
+
+		glBindTexture(GL_TEXTURE_2D, bloomOutTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, renderWidth, renderHeight, 0, GL_RGBA, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	}
 
 
@@ -214,24 +239,72 @@ int RenderDebug(int renderWidth, int renderHeight, int textureId) {
 	glClear(GL_COLOR_BUFFER_BIT);
 
 
-	hdrShader->use();
-	hdrShader->setInt("image", 0);
-	hdrShader->setBool("gamma_correction", Editor::Instance->entityInspector->ppfxSettings["gamma_correction"]);
-	hdrShader->setBool("use_reinhard", Editor::Instance->entityInspector->ppfxSettings["use_reinhard"]);
-	hdrShader->setFloat("exposure", Editor::Instance->entityInspector->ppfxSettings["exposure"]);
+	kawaseDownsample->use();
+	kawaseDownsample->setInt("u_sourceTex", 0);
+	kawaseDownsample->setVec2("u_sourceRes", glm::vec2(renderWidth, renderHeight));
 
-	// Set Input Tex
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, textureId);
-
-	// Draw
+	glBindTexture(GL_TEXTURE_2D, brightTexture);
 	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glBindVertexArray(0);
 
+
+	// Downscale
+	for(int i = 0; i < sampleCount; i++)
+	{
+		BlurTexture blurSample = blurTex[i];
+		glViewport(0, 0, blurSample.Width, blurSample.Height);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, blurSample.TextureId, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		kawaseDownsample->setVec2("u_sourceRes", glm::vec2(blurSample.Width, blurSample.Height));
+		glBindTexture(GL_TEXTURE_2D, blurSample.TextureId);
+	}
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glBlendEquation(GL_FUNC_ADD);
+
+	kawaseUpsample->use();
+
+	glActiveTexture(GL_TEXTURE0);
+	kawaseUpsample->setInt("u_sourceTex", 0);
+
+	for(int i = sampleCount -1; i > 0; i--)
+	{
+		BlurTexture blurSample = blurTex[i];
+		BlurTexture nextBlurSample = blurTex[i - 1];
+
+		glBindTexture(GL_TEXTURE_2D, blurSample.TextureId);
+		glViewport(0, 0, nextBlurSample.Width, nextBlurSample.Height);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, nextBlurSample.TextureId, 0);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	}
+
+	glDisable(GL_BLEND);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return hdrOutTex;
+	glBindFramebuffer(GL_FRAMEBUFFER, bloomFbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bloomOutTex, 0); // Set Output Tex
+
+	bloomShader->use();
+	bloomShader->setInt("scene", 0);
+	bloomShader->setInt("bloomBlur", 1);
+	bloomShader->setFloat("exposure", Editor::Instance->entityInspector->exposure);
+
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, sceneTexture);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, blurTex[0].TextureId);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glBindVertexArray(0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+	return bloomOutTex;
 }
 
 int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
@@ -304,6 +377,10 @@ void Game::Render() {
 	static unsigned int shadowMapFbo = -1, shadowMapOutTex = -1;
 	static bool shadowInitial = false;
 
+	// Bloom
+	const int sampleCount = 4;
+	static BlurTexture blurChain[sampleCount];
+
   if (vpFbo == -1) {
     glGenFramebuffers(1, &vpFbo);
 
@@ -339,6 +416,31 @@ void Game::Render() {
     glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, vpDepthRbo);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+		// HACK
+		for(int i = 0; i < sampleCount; i++)
+		{
+			int textureW = renderWitdh / pow(2, i);
+			int textureH = renderHeight / pow(2, i);
+
+
+			unsigned int texture = -1;
+			glGenTextures(1, &texture);
+
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureW, textureH, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+			blurChain[i] = BlurTexture({
+					.TextureId = texture,
+					.Width = textureW,
+					.Height = textureH
+			});
+		}
   }
 
 	if(skyboxVBO == -1 && skyboxVBO == -1 && skyboxCubeTextureId == -1)
@@ -395,8 +497,8 @@ void Game::Render() {
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	if(!shadowInitial || updateShadows)
 	{
-
-		glCullFace(GL_FRONT);
+		//glCullFace(GL_FRONT);
+		Log::Inf("I called");
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
 		glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -418,7 +520,7 @@ void Game::Render() {
 
 	// Render Scene Lit
 
-	glCullFace(GL_BACK);
+	//glCullFace(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
 	glViewport(0, 0, renderWitdh, renderHeight);
 
@@ -450,7 +552,7 @@ void Game::Render() {
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	int debugHdrTexture = RenderDebug(renderWitdh, renderHeight, vpBrightOutTex);
+	int debugHdrTexture = TurboBlur(renderWitdh, renderHeight, vpBrightOutTex, sampleCount, blurChain, vpOutTex);
 
   // Render Skybox
 
