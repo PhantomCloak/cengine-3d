@@ -24,8 +24,7 @@ uniform mat4 lightView;
 
 void main()
 {
-	gl_Position = projection * view * model * vec4(aPos, 1.0);
-
+	// Normal Calculation
 	vec3 T = normalize(vec3((view * model) * vec4(aTangent, 0.0)));
 	vec3 N = normalize(vec3((view * model) * vec4(aNormal, 0.0)));
 	T = normalize(T - dot(T, N) * N);
@@ -33,8 +32,9 @@ void main()
 
 	TBN = mat3(T, B, N);
 
+	// Figure out FragPos taken account view * model
+	// PS: Projection doesn't need since we only interested by it's actual location in the world
 	FragPos = vec3(view * model * vec4(aPos, 1.0));
-	Normal = mat3(transpose(inverse(view * model))) * aNormal; // fix non-uniform scaling
 	LightPos = vec3(view * vec4(lightPos, 1.0));
 	TexCoords = aTexCoords;
 
@@ -42,4 +42,6 @@ void main()
 	vec3 FragPos2 = vec3(model * vec4(aPos, 1.0));
 	// Shadow
 	FragPosLightSpace = (lightProjection * lightView) * vec4(FragPos2, 1.0);
+
+	gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
