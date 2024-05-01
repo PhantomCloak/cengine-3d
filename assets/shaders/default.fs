@@ -9,6 +9,7 @@ in vec3 LightPos;
 in vec2 TexCoords;
 in vec4 FragPosLightSpace;
 in mat3 TBN;
+in vec3 Normal;
 
 uniform vec3 viewPos;
 
@@ -27,13 +28,11 @@ struct Light {
 
 uniform Material material;
 uniform Light light;
-uniform bool test;
-
 
 uniform sampler2D shadowMap;
 
 float near = 0.1; 
-float far  = 4000.0; 
+float far  = 100;
   
 float LinearizeDepth(float depth) 
 {
@@ -47,8 +46,8 @@ float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 	// perform pespective  divide (e.g get fragment location in light space)
 	// By the way since we are using orthographic projection this step is meaningless due to w is untouched
 	// But required if we are about to use perspective projection for the light
-	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w; // Gets the result from -1 to 1
-	//vec3 projCoords = fragPosLightSpace.xyz;
+	//vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w; // Gets the result from -1 to 1
+	vec3 projCoords = fragPosLightSpace.xyz;
 
 	// since depth texture is in 0 to 1 space we convert
 	projCoords = projCoords * 0.5 + 0.5;
@@ -60,24 +59,31 @@ float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 	float currentDepth = projCoords.z;
 
 	// Depending on the angle between fragment normal and light direction we increase our decrease bias
-	float bias = max(0.0020 * (1.0 - dot(normal, lightDir)), 0.00020);
+	//float bias = max(0.0090 * (1.0 - dot(normal, lightDir)), 0.00090);
+	//float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
 
-	//float bias = 0.005;
-	float shadow = 0.0;
-	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
-	const int halfkernelWidth = 3;
-	for(int x = -halfkernelWidth; x <= halfkernelWidth; ++x)
-	{
-		for(int y = -halfkernelWidth; y <= halfkernelWidth; ++y)
-		{
-			float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
-		}
-	}
-	shadow /= ((halfkernelWidth*2+1)*(halfkernelWidth*2+1));	
+	//float shadow = currentDepth > closestDepth  ? 1.0 : 0.0;
+	//float bias = 0.001;
+	float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+	float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
 
-	if(projCoords.z > 1.0)
-		shadow = 0.0;
+	//float bias = 0.015;
+
+	//float shadow = 0.0;
+//	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+//	const int halfkernelWidth = 3;
+//	for(int x = -halfkernelWidth; x <= halfkernelWidth; ++x)
+//	{
+//		for(int y = -halfkernelWidth; y <= halfkernelWidth; ++y)
+//		{
+//			float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+//			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+//		}
+//	}
+//	shadow /= ((halfkernelWidth*2+1)*(halfkernelWidth*2+1));	
+//
+//	if(projCoords.z > 1.0)
+//		shadow = 0.0;
 
 	return shadow;
 }
@@ -87,14 +93,14 @@ void main()
 	vec4 textureColor = texture(material.texture_diffuse1, TexCoords);
 
 	// HACK: filter out semi transparent stuff
-	if(textureColor.a < 0.5) {
-		discard;
-	}
+	//if(textureColor.a < 0.5) {
+	//	discard;
+	//}
 
-	vec3 normal;
-	normal = texture(material.texture_height1, TexCoords).rgb;
-	normal = normal * 2.0 - 1.0;   
-	normal = normalize(TBN * normal);
+	vec3 normal = normalize(Normal);
+	//normal = texture(material.texture_height1, TexCoords).rgb;
+	//normal = normal * 2.0 - 1.0;   
+	//normal = normalize(TBN * normal);
 
 	// Ambient
 	vec3 ambient = light.ambient;
@@ -103,7 +109,6 @@ void main()
 	vec3 lightDir = normalize(LightPos - FragPos);
 	float diff = max(dot(normal, lightDir), 0.0); // prevent diffuse if light below the normal
 	vec3 diffuse = light.diffuse * diff;
-
 
 	// specular
 	vec3 viewDir = normalize(-FragPos);
@@ -124,7 +129,7 @@ void main()
     DepthColor = vec4(vec3(depth), 1.0);
 
 	// Bright Color
-	float brightness = dot(FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+	float brightness = dot(FragColor.rgb, vec3(0.3126, 0.8152, 0.0922));
 
 	if(brightness > 1.0)
         BrightColor = FragColor;

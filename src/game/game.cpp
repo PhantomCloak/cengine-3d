@@ -502,7 +502,7 @@ void Game::Render() {
 	float width = SHADOW_WIDTH;
 
 	//glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, light->NearPlane, light->FarPlane);
-	glm::mat4 orthoProjection = glm::ortho(-50.0f, 50.0f, 50.0f, -50.0f, light->NearPlane, light->FarPlane);
+	glm::mat4 orthoProjection = glm::ortho(-30.0f, 30.0f, 30.0f, -30.0f, light->NearPlane, light->FarPlane);
 
 	//if(!shadowInitial || updateShadows)
 	//{

@@ -42,6 +42,7 @@ void main()
 	vec3 FragPos2 = vec3(model * vec4(aPos, 1.0));
 	// Shadow
 	FragPosLightSpace = (lightProjection * lightView) * vec4(FragPos2, 1.0);
+	Normal = mat3(transpose(inverse(view * model))) * aNormal; // fix non-uniform scaling
 
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
