@@ -26,8 +26,6 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
 add_subdirectory(libs/nativefiledialog-extended)
-add_subdirectory(libs/native_message_box)
-add_subdirectory(libs/flecs)
 
 include_directories(
     "./src"
