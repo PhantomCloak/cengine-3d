@@ -89,6 +89,22 @@ void Fit2(int image, int srcWidth, int srcHeight) {
 		ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f); // Black color for the letterbox
 }
 
+void EditorViewPort::ViewportEnableMouseControlls() {
+	ImGuiIO& io = ImGui::GetIO();
+	if ((ImGui::IsWindowHovered() || ImGui::IsWindowFocused()) && *io.MouseClicked != 0) {
+
+				isFocused = true;
+				Cursor::CaptureMouse(true);
+		}        
+		
+
+		if (isFocused && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+		{
+			isFocused = false;
+			Cursor::CaptureMouse(false);
+		}
+}
+
 void EditorViewPort::RenderWindow() {
 	static bool Open = true;
 
@@ -103,20 +119,7 @@ void EditorViewPort::RenderWindow() {
 		ImVec2 windowSize = ImGui::GetWindowSize();
 		ImVec2 contentAvail = ImGui::GetContentRegionAvail();
 
-		ImGuiIO& io = ImGui::GetIO();
-
-		if ((ImGui::IsWindowHovered() || ImGui::IsWindowFocused()) && *io.MouseClicked != 0) {
-
-				isFocused = true;
-				Cursor::CaptureMouse(true);
-		}        
-		
-
-		if (isFocused && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
-		{
-			isFocused = false;
-			Cursor::CaptureMouse(false);
-		}
+		ViewportEnableMouseControlls();
 
 		int frameId = CommancheRenderer::Instance->GetFrame();
 		Fit2(frameId, 1920, 1080);
@@ -138,6 +141,7 @@ void EditorViewPort::RenderWindow() {
 
 	if (ImGui::Begin("HDR Buffer", &Open, ImGuiWindowFlags_NoNav)) { 
 		int frameId = CommancheRenderer::Instance->hdrBuffer;
+		ViewportEnableMouseControlls();
 		Fit2(frameId, 1920, 1080);
 	}
 	ImGui::End();

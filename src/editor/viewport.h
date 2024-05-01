@@ -9,5 +9,6 @@ class EditorViewPort : public EditorWindow {
     glm::vec2 ViewportCursorPos;
     glm::vec2 ViewportSize;
   private:
+		void ViewportEnableMouseControlls();
     bool isFocused;
 };
