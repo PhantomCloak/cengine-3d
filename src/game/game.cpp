@@ -29,10 +29,13 @@ Shader *hdrShader;
 Shader *kawaseUpsample;
 Shader *kawaseDownsample;
 Shader *bloomShader;
+Shader *gridShader;
 
 Ref<Model> sampleModel;
 Ref<Model> lightModel;
-Ref<Model> box2;
+Ref<Model> floorModel;
+
+Ref<Model> cubeModel;
 
 Camera *camera;
 
@@ -71,16 +74,14 @@ Ref<DirectionalLight> light;
 void Game::Setup() {
   Log::Warn("Engine is starting");
 
-  camera = new Camera(glm::vec3(0.0f, 2.0f, 3.0f));
+  camera = new Camera(glm::vec3(2.0f, 1.5f, 3.0f));
 
-	light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.3f), glm::vec3(1), 50, 0.1f);
+	light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.3f), glm::vec3(1), 100, 0.1f);
 
-	light->Transform.position = glm::vec3(0, 40, 0);
-	//light->Transform.rotation = glm::vec3(-66, 28, 0);
-	light->Transform.rotation = glm::vec3(-66, 0, 0);
-	//light->Transform.rotation = glm::vec3(1, 0, 0);
-
-//	light->Transform.scale = glm::vec3(10);
+	//light->Transform.position = glm::vec3(69, 34, 0);
+	//light->Transform.rotation = glm::vec3(-18, 90, 0);
+	light->Transform.position = glm::vec3(0, 30, 0);
+	light->Transform.rotation = glm::vec3(-90, 0, 0);
 
   defaultShader = new Shader("assets/shaders/default.vs", "assets/shaders/default.fs");
   skyboxShader = new Shader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
@@ -89,18 +90,29 @@ void Game::Setup() {
   debugShader = new Shader("assets/shaders/debug.vs", "assets/shaders/debug.fs");
   hdrShader = new Shader("assets/shaders/hdr.vs", "assets/shaders/hdr.fs");
   bloomShader = new Shader("assets/shaders/bloom.vs", "assets/shaders/bloom.fs");
+  gridShader = new Shader("assets/shaders/grid.vs", "assets/shaders/grid.fs");
 
   kawaseUpsample = new Shader("assets/shaders/kawase.vs", "assets/shaders/kawase_upsample.fs");
   kawaseDownsample = new Shader("assets/shaders/kawase.vs", "assets/shaders/kawase_downsample.fs");
 
   sampleModel = CreateRef<Model>("assets/models/scene.gltf");
-  lightModel = CreateRef<Model>("assets/models/cube.obj");
-  box2 = CreateRef<Model>("assets/models/cube.obj");
+  lightModel = CreateRef<Model>("assets/models/pointy_cube.obj");
+  cubeModel = CreateRef<Model>("assets/models/rock.obj");
+
+	cubeModel->Transform.position.x = 10;
+	cubeModel->Transform.position.y = 3;
+
+	lightModel->Transform.position = glm::vec3(0,0, 50);
+
+  floorModel = CreateRef<Model>("assets/models/cube.obj");
+
+	floorModel->Transform.position = glm::vec3(0, 0, 0);
 
   Root->AddChild(sampleModel);
+  Root->AddChild(cubeModel);
   Root->AddChild(light);
   Root->AddChild(lightModel);
-  Root->AddChild(box2);
+  Root->AddChild(floorModel);
 }
 
 void Game::Update() {
@@ -181,16 +193,16 @@ void RenderScene(Shader* shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
 
   shader->setFloat("material.shininess", 64.0f);
 
-  shader->setMat4("projection", projectionMat);
+  shader->setMat4("projection", projectionMat);	
   shader->setMat4("view", viewMat);
 
   sampleModel->Draw(*shader);
+	cubeModel->Draw(*shader);
 
-	lightModel->Transform.position = glm::vec3(0, -1, 0);
-	lightModel->Transform.scale = glm::vec3(10, 1, 10);
+	lightModel->Transform = light->Transform;
 	lightModel->Draw(*shader);
 
-	box2->Draw(*shader);
+	floorModel->Draw(*shader);
 }
 
 struct BlurTexture {
@@ -368,9 +380,74 @@ int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
 	return debugOutTex;
 }
 
+int RenderGrid(glm::mat4 projection) {
+
+	// generate vbo and buffer data
+	static GLuint vbo = -1;
+	static GLuint vao = -1;
+	static unsigned fbo = -1;
+	static unsigned out = -1;
+	static unsigned rbo = -1;
+	static glm::vec3 pos = glm::vec3(0, 0, 0);
+
+	if(vbo == - 1)
+	{
+		glGenVertexArrays(1, &vao);
+		glGenBuffers(1, &vbo);
+
+		glBindVertexArray(vao);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(gridPlane), &gridPlane, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    glGenFramebuffers(1, &fbo);
+    glGenTextures(1, &out);
+
+		glBindTexture(GL_TEXTURE_2D, out);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1920, 1080, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1920, 1080);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	//glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+  //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, out, 0); // Set Output Tex
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+																																															
+	gridShader->use();
+
+	glm::mat4 viewCopy = glm::mat4(camera->GetViewMatrix());
+	viewCopy = glm::translate(viewCopy, glm::vec3(-camera->Position.x, -camera->Position.y, -camera->Position.z));
+
+
+	//viewCopy[3][1] = 0.0f;
+	gridShader->setMat4("view", viewCopy);
+	gridShader->setMat4("proj", projection);
+	gridShader->setVec3("pos", pos);
+
+	glBindVertexArray(vao);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 6);
+	glBindVertexArray(0);
+
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return out;
+}
+
 void Game::Render() {
-  int renderWitdh = CommancheRenderer::screenWidth * 2;
-  int renderHeight = CommancheRenderer::screenHeight * 2;
+  int renderWitdh = CommancheRenderer::screenWidth;
+  int renderHeight = CommancheRenderer::screenHeight;
 
 	// Viewport
 	static unsigned int vpFbo = -1, vpDepthRbo = -1, vpOutTex = -1, vpDepthOutTex = -1, vpBrightOutTex = -1;
@@ -466,7 +543,7 @@ void Game::Render() {
 
 	//const unsigned int SHADOW_WIDTH = 1024 * 5, SHADOW_HEIGHT = 1024 * 5;
 	//const unsigned int SHADOW_WIDTH = 200, SHADOW_HEIGHT = 200;
-	const unsigned int SHADOW_WIDTH = 1920, SHADOW_HEIGHT = 1080;
+	const unsigned int SHADOW_WIDTH = 1024 * 8, SHADOW_HEIGHT = 1024 * 8;
 	if(shadowMapFbo == -1 && shadowMapOutTex == -1)
 	{
     glGenFramebuffers(1, &shadowMapFbo);
@@ -495,41 +572,37 @@ void Game::Render() {
 	}
 
 	// Render Scene From Light Perspective
-
 	glm::mat4 view;
-
 	float height = SHADOW_HEIGHT;
 	float width = SHADOW_WIDTH;
 
+	//glm::mat4 orthoProjection = glm::ortho(-30.0f, 30.0f, 30.0f, -30.0f, light->NearPlane, light->FarPlane);
 	//glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, light->NearPlane, light->FarPlane);
 	glm::mat4 orthoProjection = glm::ortho(-30.0f, 30.0f, 30.0f, -30.0f, light->NearPlane, light->FarPlane);
 
-	//if(!shadowInitial || updateShadows)
-	//{
-		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-		glCullFace(GL_FRONT);
-		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
-		glClear(GL_DEPTH_BUFFER_BIT);
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	//glCullFace(GL_BACK);
+	//glCullFace(GL_FRONT);
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
+	glClear(GL_DEPTH_BUFFER_BIT);
 
-		glm::vec3 lookPos = camera->Position;
-		view = light->GetViewMatrix();
+	glm::vec3 lookPos = camera->Position;
+	view = light->GetViewMatrix();
 
-		shadowShader->use();
-		RenderScene(shadowShader, orthoProjection ,view);
+	shadowShader->use();
+	RenderScene(shadowShader, orthoProjection ,view);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		shadowInitial = true;
-		updateShadows = false;
-	//}
+	shadowInitial = true;
+	updateShadows = false;
 
 	view = light->GetViewMatrix();
 
 	int debugTexture = RenderDepthToTexture(SHADOW_WIDTH, SHADOW_HEIGHT, shadowMapOutTex);
 
 	// Render Scene Lit
-
-	glCullFace(GL_BACK);
+	//glCullFace(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
 	glViewport(0, 0, renderWitdh, renderHeight);
 
@@ -547,11 +620,16 @@ void Game::Render() {
   glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)renderWitdh / (float)renderHeight, 0.1f, 10000.0f);
 	view = camera->GetViewMatrix();
 
+	RenderGrid(projection);
+
 	defaultShader->use();
 
 	defaultShader->setInt("shadowMap", 0);
 	defaultShader->setMat4("lightProjection", orthoProjection);
 	defaultShader->setMat4("lightView", light->GetViewMatrix());
+
+	defaultShader->setFloat("maxBias", Editor::Instance->entityInspector->maxBias);
+	defaultShader->setFloat("minBias", Editor::Instance->entityInspector->minBias);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowMapOutTex);
@@ -577,8 +655,11 @@ void Game::Render() {
 
 	int debugHdrTexture = TurboBlur(renderWitdh, renderHeight, vpBrightOutTex, sampleCount, blurChain, vpOutTex);
 
+	//int dbg = RenderGrid(projection);
+
 	renderer->textureColorbuffer = vpOutTex;
 	renderer->depthBuffer = vpDepthOutTex;
+	//renderer->depthBuffer = dbg;
 	renderer->lightBuffer = debugTexture;
 	renderer->hdrBuffer = debugHdrTexture;
 }

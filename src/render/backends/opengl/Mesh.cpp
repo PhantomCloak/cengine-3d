@@ -50,6 +50,12 @@ void Mesh::Draw(Shader &shader)
     unsigned int normalNr = 1;
 
 		shader.setMat4("model", Parent->GetModelMatrix() * this->GetModelMatrix());
+
+		if(shy != 0)
+		{
+			shader.setFloat("material.shininess", shy);
+		}
+
     for(unsigned int i = 0; i < textures.size(); i++)
     {
         // retrieve texture number (the N in diffuse_textureN)
@@ -75,6 +81,7 @@ void Mesh::Draw(Shader &shader)
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+		glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 

@@ -29,6 +29,9 @@ struct Light {
 uniform Material material;
 uniform Light light;
 
+uniform float minBias;
+uniform float maxBias;
+
 uniform sampler2D shadowMap;
 
 float near = 0.1; 
@@ -64,26 +67,26 @@ float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 
 	//float shadow = currentDepth > closestDepth  ? 1.0 : 0.0;
 	//float bias = 0.001;
-	float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+	float bias = max(maxBias * (1.0 - dot(normal, lightDir)), minBias);
 	float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
 
 	//float bias = 0.015;
 
-	//float shadow = 0.0;
-//	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
-//	const int halfkernelWidth = 3;
-//	for(int x = -halfkernelWidth; x <= halfkernelWidth; ++x)
-//	{
-//		for(int y = -halfkernelWidth; y <= halfkernelWidth; ++y)
-//		{
-//			float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-//			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
-//		}
-//	}
-//	shadow /= ((halfkernelWidth*2+1)*(halfkernelWidth*2+1));	
-//
-//	if(projCoords.z > 1.0)
-//		shadow = 0.0;
+	//	float shadow = 0.0;
+	//vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+	//const int halfkernelWidth = 3;
+	//for(int x = -halfkernelWidth; x <= halfkernelWidth; ++x)
+	//{
+	//	for(int y = -halfkernelWidth; y <= halfkernelWidth; ++y)
+	//	{
+	//		float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+	//		shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+	//	}
+	//}
+	//shadow /= ((halfkernelWidth*2+1)*(halfkernelWidth*2+1));	
+
+	if(projCoords.z > 1.0)
+		shadow = 0.0;
 
 	return shadow;
 }
@@ -126,13 +129,14 @@ void main()
 
 	// Depth
 	float depth = LinearizeDepth(gl_FragCoord.z) / far; // divide by far for demonstration
-    DepthColor = vec4(vec3(depth), 1.0);
+	DepthColor = vec4(vec3(depth), 1.0);
 
 	// Bright Color
 	float brightness = dot(FragColor.rgb, vec3(0.3126, 0.8152, 0.0922));
 
 	if(brightness > 1.0)
-        BrightColor = FragColor;
+        BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
+        //BrightColor = FragColor;
     else
         BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
 }

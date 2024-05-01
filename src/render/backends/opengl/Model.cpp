@@ -186,7 +186,23 @@ Ref<Mesh> Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		//}
 
     // return a mesh object created from the extracted mesh data
-    return CreateRef<Mesh>(vertices, indices, textures);
+
+    Ref<Mesh> result = CreateRef<Mesh>(vertices, indices, textures);
+
+		float shyMan = 0;
+		if(AI_SUCCESS != material->Get(AI_MATKEY_SHININESS, shyMan)) {
+			Log::Err("Epic Fail");
+		}
+		else
+		{
+			result->shy = shyMan;
+		}
+
+		return result;
+}
+
+void Model::processMaterial(aiMesh* mesh) {
+
 }
 
 std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName) {

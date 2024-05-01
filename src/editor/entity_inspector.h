@@ -12,5 +12,11 @@ class EntityInspector : public EditorWindow {
     static Ref<Node> selectedNode;
 		std::map<std::string, bool> ppfxSettings;
 		float exposure = 0.5f;
+		float maxBias = 0.050;
+		float minBias = 0.005;
+
+
+		//float maxBias = 0.265;
+		//float minBias = 0.079;
   private:
 };

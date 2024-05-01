@@ -75,6 +75,10 @@ void EntityInspector::RenderWindow() {
 						ImGui::Checkbox("Gamma Correction: ", &ppfxSettings["gamma_correction"]);
 						ImGui::Checkbox("Use Reinhard: ", &ppfxSettings["use_reinhard"]);
 						ImGui::InputFloat("Exposure: ", &exposure, 0.1);
+
+						ImGui::Spacing();
+						ImGui::InputFloat("Max Bias: ", &maxBias, 0.001);
+						ImGui::InputFloat("Min Bias: ", &minBias, 0.001);
 				}
 				ImGui::End();
 		}

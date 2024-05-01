@@ -118,7 +118,7 @@ void EditorViewPort::RenderWindow() {
 			Cursor::CaptureMouse(false);
 		}
 
-		int frameId = CommancheRenderer::Instance->GetFrame();
+		int frameId = CommancheRenderer::Instance->hdrBuffer;
 		Fit2(frameId, 1920, 1080);
 	}
 	ImGui::End();
@@ -137,7 +137,23 @@ void EditorViewPort::RenderWindow() {
 
 
 	if (ImGui::Begin("HDR Buffer", &Open, ImGuiWindowFlags_NoNav)) { 
-		int frameId = CommancheRenderer::Instance->hdrBuffer;
+		int frameId = CommancheRenderer::Instance->GetFrame();
+
+		ImGuiIO& io = ImGui::GetIO();
+
+		if ((ImGui::IsWindowHovered() || ImGui::IsWindowFocused()) && *io.MouseClicked != 0) {
+
+				isFocused = true;
+				Cursor::CaptureMouse(true);
+		}        
+		
+
+		if (isFocused && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+		{
+			isFocused = false;
+			Cursor::CaptureMouse(false);
+		}
+
 		Fit2(frameId, 1920, 1080);
 	}
 	ImGui::End();
