@@ -32,6 +32,8 @@ Shader *bloomShader;
 
 Ref<Model> sampleModel;
 Ref<Model> lightModel;
+Ref<Model> box2;
+
 Camera *camera;
 
 Game::Game() {
@@ -71,13 +73,14 @@ void Game::Setup() {
 
   camera = new Camera(glm::vec3(0.0f, 2.0f, 3.0f));
 
-	light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.3f),
-                                      glm::vec3(1));
-	light->Transform.position = glm::vec3(0, 3000, 0);
-	light->Transform.rotation = glm::vec3(-66, 28, 0);
+	light = CreateRef<DirectionalLight>(glm::vec3(0.2f), glm::vec3(0.3f), glm::vec3(1), 50, 0.1f);
+
+	light->Transform.position = glm::vec3(0, 40, 0);
+	//light->Transform.rotation = glm::vec3(-66, 28, 0);
+	light->Transform.rotation = glm::vec3(-66, 0, 0);
 	//light->Transform.rotation = glm::vec3(1, 0, 0);
 
-	light->Transform.scale = glm::vec3(10);
+//	light->Transform.scale = glm::vec3(10);
 
   defaultShader = new Shader("assets/shaders/default.vs", "assets/shaders/default.fs");
   skyboxShader = new Shader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
@@ -90,12 +93,14 @@ void Game::Setup() {
   kawaseUpsample = new Shader("assets/shaders/kawase.vs", "assets/shaders/kawase_upsample.fs");
   kawaseDownsample = new Shader("assets/shaders/kawase.vs", "assets/shaders/kawase_downsample.fs");
 
-  sampleModel = CreateRef<Model>("assets/models/sponza.obj");
+  sampleModel = CreateRef<Model>("assets/models/scene.gltf");
   lightModel = CreateRef<Model>("assets/models/cube.obj");
+  box2 = CreateRef<Model>("assets/models/cube.obj");
 
   Root->AddChild(sampleModel);
   Root->AddChild(light);
   Root->AddChild(lightModel);
+  Root->AddChild(box2);
 }
 
 void Game::Update() {
@@ -123,7 +128,7 @@ void Game::ProcessInput() {
 
   cposOffset.x = cpos.x - lastCpos.x;
   cposOffset.y = cpos.y - lastCpos.y;
-  const float mulSpeed = 5.0f;
+  const float mulSpeed = 0.1f;
 
 	if (Keyboard::IsKeyPressing(Key_W)) {
 		camera->ProcessKeyboard(FORWARD, 1.1f * mulSpeed);
@@ -181,8 +186,11 @@ void RenderScene(Shader* shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
 
   sampleModel->Draw(*shader);
 
-	lightModel->Transform = light->Transform;
+	lightModel->Transform.position = glm::vec3(0, -1, 0);
+	lightModel->Transform.scale = glm::vec3(10, 1, 10);
 	lightModel->Draw(*shader);
+
+	box2->Draw(*shader);
 }
 
 struct BlurTexture {
@@ -341,13 +349,10 @@ int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, debugOutTex, 0); // Set Output Tex
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	float nearPlane = 0.1f;
-	float farPlane = 4000.0f;
-
 	debugShader->use();
 	debugShader->setInt("image", 0);
-	debugShader->setFloat("near_plane", nearPlane);
-	debugShader->setFloat("far_plane", farPlane);
+	debugShader->setFloat("near_plane", light->NearPlane);
+	debugShader->setFloat("far_plane", light->FarPlane);
 
 	// Set Input Tex
 	glActiveTexture(GL_TEXTURE0);
@@ -364,8 +369,8 @@ int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
 }
 
 void Game::Render() {
-  int renderWitdh = CommancheRenderer::screenWidth;
-  int renderHeight = CommancheRenderer::screenHeight;
+  int renderWitdh = CommancheRenderer::screenWidth * 2;
+  int renderHeight = CommancheRenderer::screenHeight * 2;
 
 	// Viewport
 	static unsigned int vpFbo = -1, vpDepthRbo = -1, vpOutTex = -1, vpDepthOutTex = -1, vpBrightOutTex = -1;
@@ -459,7 +464,9 @@ void Game::Render() {
 		skyboxCubeTextureId = AssetManager::LoadCubeMap(faces);
 	}
 
-	const unsigned int SHADOW_WIDTH = 1024 * 5, SHADOW_HEIGHT = 1024 * 5;
+	//const unsigned int SHADOW_WIDTH = 1024 * 5, SHADOW_HEIGHT = 1024 * 5;
+	//const unsigned int SHADOW_WIDTH = 200, SHADOW_HEIGHT = 200;
+	const unsigned int SHADOW_WIDTH = 1920, SHADOW_HEIGHT = 1080;
 	if(shadowMapFbo == -1 && shadowMapOutTex == -1)
 	{
     glGenFramebuffers(1, &shadowMapFbo);
@@ -469,8 +476,13 @@ void Game::Render() {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
     float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
 
@@ -486,19 +498,16 @@ void Game::Render() {
 
 	glm::mat4 view;
 
-	float nearPlane = 0.1f;
-	float farPlane = 4000.0f;
-
 	float height = SHADOW_HEIGHT;
 	float width = SHADOW_WIDTH;
 
-	glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, nearPlane, farPlane);
+	//glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2, height / 2, light->NearPlane, light->FarPlane);
+	glm::mat4 orthoProjection = glm::ortho(-50.0f, 50.0f, 50.0f, -50.0f, light->NearPlane, light->FarPlane);
 
-	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-	if(!shadowInitial || updateShadows)
-	{
-		//glCullFace(GL_FRONT);
-		Log::Inf("I called");
+	//if(!shadowInitial || updateShadows)
+	//{
+		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+		glCullFace(GL_FRONT);
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
 		glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -512,7 +521,7 @@ void Game::Render() {
 
 		shadowInitial = true;
 		updateShadows = false;
-	}
+	//}
 
 	view = light->GetViewMatrix();
 
@@ -520,7 +529,7 @@ void Game::Render() {
 
 	// Render Scene Lit
 
-	//glCullFace(GL_BACK);
+	glCullFace(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
 	glViewport(0, 0, renderWitdh, renderHeight);
 
@@ -532,7 +541,6 @@ void Game::Render() {
 	glDrawBuffers(3, drawBuffers2);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  //glViewport(0, 0, renderWitdh, renderHeight);
   glClearColor(0.0f, 0.13f, 0.0, 1.0f);
   glEnable(GL_DEPTH_TEST);
 
@@ -550,12 +558,7 @@ void Game::Render() {
 
 	RenderScene(defaultShader, projection, view);
 
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	int debugHdrTexture = TurboBlur(renderWitdh, renderHeight, vpBrightOutTex, sampleCount, blurChain, vpOutTex);
-
   // Render Skybox
-
   glDepthFunc(GL_LEQUAL);
 
   skyboxShader->use();
@@ -571,6 +574,8 @@ void Game::Render() {
   glDepthFunc(GL_LESS);
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	int debugHdrTexture = TurboBlur(renderWitdh, renderHeight, vpBrightOutTex, sampleCount, blurChain, vpOutTex);
 
 	renderer->textureColorbuffer = vpOutTex;
 	renderer->depthBuffer = vpDepthOutTex;
