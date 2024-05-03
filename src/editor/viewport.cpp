@@ -141,7 +141,7 @@ void EditorViewPort::RenderWindow() {
 
 	if (ImGui::Begin("HDR Buffer", &Open, ImGuiWindowFlags_NoNav)) { 
 		int frameId = CommancheRenderer::Instance->hdrBuffer;
-		ViewportEnableMouseControlls();
+		//ViewportEnableMouseControlls();
 		Fit2(frameId, 1920, 1080);
 	}
 	ImGui::End();

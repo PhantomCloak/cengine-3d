@@ -7,10 +7,10 @@ int main(int argc, char* argv[]) {
     game.Initialize();
 #if EDITOR
 		Editor* editor = new Editor();
-#endif
-		// TODO brak dep
 		editor->Init(game.renderer.get());
 		editor->sceneList->SetRoot(game.Root);
+#endif
+		// TODO brak dep
     game.Setup();
 
     while (game.isRunning) {
