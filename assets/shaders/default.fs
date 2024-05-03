@@ -87,9 +87,9 @@ void main()
 	vec4 textureColor = texture(material.texture_diffuse1, TexCoords);
 
 	// HACK: filter out semi transparent stuff
-	if(textureColor.a < 0.5) {
-		discard;
-	}
+	//if(textureColor.a < 0.5) {
+	//	discard;
+	//}
 
 	vec3 normal;
 	normal = texture(material.texture_height1, TexCoords).rgb;
@@ -117,6 +117,7 @@ void main()
 	vec3 resultLight = (ambient + (1.0 - shadow) * (diffuse + specular)) * textureColor.rgb;
 
 	// Fragment
+	//FragColor = vec4(resultLight, 1.0);
 	FragColor = vec4(resultLight, 1.0);
 
 	// Depth
