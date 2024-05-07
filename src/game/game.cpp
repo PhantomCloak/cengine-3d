@@ -289,7 +289,9 @@ int TurboBlur(int renderWidth, int renderHeight, int brightTexture, int sampleCo
 	bloomShader->use();
 	bloomShader->setInt("scene", 0);
 	bloomShader->setInt("bloomBlur", 1);
-	bloomShader->setFloat("exposure", Editor::Instance->entityInspector->exposure);
+
+	//bloomShader->setFloat("exposure", Editor::Instance->entityInspector->exposure);
+	bloomShader->setFloat("exposure", Editor::Instance->ppfxInspector->exposure);
 
 
 	glActiveTexture(GL_TEXTURE0);
@@ -378,7 +380,7 @@ void Game::Render() {
 	static bool shadowInitial = false;
 
 	// Bloom
-	const int sampleCount = 4;
+	const int sampleCount = 8;
 	static BlurTexture blurChain[sampleCount];
 
   if (vpFbo == -1) {
@@ -543,6 +545,7 @@ void Game::Render() {
 	defaultShader->setInt("shadowMap", 0);
 	defaultShader->setMat4("lightProjection", orthoProjection);
 	defaultShader->setMat4("lightView", light->GetViewMatrix());
+	defaultShader->setVec3("brightCutoff", Editor::Instance->ppfxInspector->brightColorCuttoff);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowMapOutTex);

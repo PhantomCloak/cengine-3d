@@ -12,7 +12,7 @@ out vec3 FragColor;
 // This shader performs upsampling on a texture, as taken from Call Of Duty method, presented at ACM Siggraph 2014.
 void main() {
     // The filter kernel is applied with a radius, specified in texture coordinates, so that the radius will vary across mip resolutions.
-		float u_radius = 0.003;
+		float u_radius = 0.005;
     float x = u_radius;
     float y = u_radius;
 

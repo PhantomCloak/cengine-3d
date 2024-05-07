@@ -31,6 +31,7 @@ uniform bool test;
 
 
 uniform sampler2D shadowMap;
+uniform vec3 brightCutoff;
 
 float near = 0.1; 
 float far  = 4000.0; 
@@ -121,10 +122,12 @@ void main()
 
 	// Depth
 	float depth = LinearizeDepth(gl_FragCoord.z) / far; // divide by far for demonstration
-    DepthColor = vec4(vec3(depth), 1.0);
+	DepthColor = vec4(vec3(depth), 1.0);
 
 	// Bright Color
-	float brightness = dot(FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+	//float brightness = dot(FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+	//vec3 resultLight = (ambient + (1.0 - shadow) * (diffuse + specular)) * textureColor.rgb;
+	float brightness = dot(FragColor.rgb, brightCutoff);
 
 	if(brightness > 1.0)
         BrightColor = FragColor;

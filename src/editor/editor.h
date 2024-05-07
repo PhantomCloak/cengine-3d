@@ -8,6 +8,7 @@
 #include "editor/system_explorer.h"
 #include "editor/entity_inspector.h"
 #include "editor/viewport.h"
+#include "editor/editor_ppfx_inspector.h"
 #include "editor/scene_hierarchy.h"
 
 class Editor {
@@ -21,6 +22,7 @@ class Editor {
     std::shared_ptr<SceneHierarchy> sceneList;
     static std::shared_ptr<Editor> Instance;
     std::shared_ptr<EntityInspector> entityInspector;
+    std::shared_ptr<EditorPPFXInspector> ppfxInspector;
     private:
     void Keybindings();
     FileView* fileView;

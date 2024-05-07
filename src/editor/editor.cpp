@@ -21,6 +21,7 @@ void Editor::Init(CommancheRenderer* renderer) {
     viewport = std::make_shared<EditorViewPort>();
     sceneList = std::make_shared<SceneHierarchy>();
     menuBar = std::make_shared<EditorMenuBar>(Instance);
+    ppfxInspector = std::make_shared<EditorPPFXInspector>(Instance);
 
     sceneList->SetSelectCallback([this](Node* entity) {
         entityInspector->SetEntity(entity);
@@ -133,6 +134,7 @@ void Editor::Render() {
     sceneList->RenderWindow();
     entityInspector->RenderWindow();
     logView->RenderWindow();
+		ppfxInspector->RenderWindow();
 
     viewport->RenderWindow();
 
