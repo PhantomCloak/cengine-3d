@@ -10,8 +10,8 @@
 GLFWwindow* k_window;
 std::string driverStr;
 glm::mat4 CommancheRenderer::ProjectionMat;
-int CommancheRenderer::screenWidth;
-int CommancheRenderer::screenHeight;
+int CommancheRenderer::ScreenWidth;
+int CommancheRenderer::ScreenHeight;
 
 int nextFontId = 0;
 const int scaleFactor = 1;
@@ -24,10 +24,6 @@ extern "C" double getScreenScaleFactor();
 
 void CommancheRenderer::AddOnViewportChangeEvent(OnViewportChange event) {
     _callbackList.push_back(event);
-}
-
-float CommancheRenderer::GetFps() {
-    return 0;
 }
 
 void CommancheRenderer::Initialize(const std::string& title, int windowWidth, int windowHeight) {
@@ -44,7 +40,7 @@ void CommancheRenderer::Initialize(const std::string& title, int windowWidth, in
 
     k_window = glfwCreateWindow(windowWidth, windowHeight, title.c_str(), NULL, NULL);
 
-    wnd = k_window;
+    WndPtr = k_window;
     if (k_window == NULL) {
         Log::Err("Failed to create GLFW window");
         glfwTerminate();
@@ -64,8 +60,8 @@ void CommancheRenderer::Initialize(const std::string& title, int windowWidth, in
         }
     });
 
-    screenWidth = windowWidth;
-    screenHeight = windowHeight;
+    ScreenWidth = windowWidth;
+    ScreenHeight = windowHeight;
 
     glfwSwapInterval(0);
     glEnable(GL_CULL_FACE);

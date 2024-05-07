@@ -1,5 +1,4 @@
 #include "editor.h"
-#include "../assetmgr/AssetManager.h"
 #include "../io/keyboard.h"
 #include "../libs/imgui/imgui.h"
 #include "editor_style.h"
@@ -11,7 +10,7 @@
 
 std::shared_ptr<Editor> Editor::Instance;
 
-void Editor::Init(CommancheRenderer* renderer) {
+void Editor::Init() {
     Log::Inf("Editor booting...");
 
     Instance = std::shared_ptr<Editor>(this);
@@ -32,7 +31,7 @@ void Editor::Init(CommancheRenderer* renderer) {
     ImGui::StyleColorsDark();
 
 #if RENDER_BACKEND_OPENGL
-    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow*)renderer->wnd, true);
+    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow*)CommancheRenderer::Instance->WndPtr, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 #endif
 
@@ -49,20 +48,12 @@ void Editor::Init(CommancheRenderer* renderer) {
 
     EditorStyle::Init();
 
-    AssetManager::AddTexture("axis", "./assets/editor/axis.png");
-    AssetManager::AddTexture("file", "./assets/editor/file-icon.png");
-    AssetManager::AddTexture("folder", "./assets/editor/folder-icon.png");
-    AssetManager::AddTexture("gear", "./assets/editor/gear.png");
-
     Log::Inf("Editor started");
-
-    //EditorSystems::Init(Scene::ecs, this);
 }
 
 void Editor::Keybindings() {
 
 }
-
 
 void renderDockingSpace() {
     static bool opt_fullscreen = true;

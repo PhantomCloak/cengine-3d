@@ -3,7 +3,6 @@
 #include "../render/render_primitives.h"
 #include "../render/render.h"
 #include "editor/editor_menu_bar.h"
-#include "editor/fileview.h"
 #include "editor/log_viewer.h"
 #include "editor/system_explorer.h"
 #include "editor/entity_inspector.h"
@@ -14,7 +13,7 @@
 class Editor {
     public:
     Editor() = default;
-    void Init(CommancheRenderer* renderer);
+    void Init();
     static glm::vec2 GetCursorPosition();
     static glm::vec2 GetViewPortSize();
     void Render();
@@ -25,9 +24,7 @@ class Editor {
     std::shared_ptr<EditorPPFXInspector> ppfxInspector;
     private:
     void Keybindings();
-    FileView* fileView;
     SystemExplorer* explorer;
     std::shared_ptr<LogView> logView;
-    std::unique_ptr<CommancheRenderer> renderer;
     std::shared_ptr<EditorMenuBar> menuBar;
 };

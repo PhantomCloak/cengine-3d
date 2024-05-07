@@ -10,7 +10,7 @@ void Keyboard::Setup() {
 }
 
 bool Keyboard::IsKeyPressed(int keyCode) {
-  return glfwGetKey((GLFWwindow*)CommancheRenderer::Instance->wnd, keyCode);
+  return glfwGetKey((GLFWwindow*)CommancheRenderer::Instance->WndPtr, keyCode);
 }
 
 void Keyboard::Poll() {
@@ -18,7 +18,7 @@ void Keyboard::Poll() {
 }
 
 bool Keyboard::IsKeyPressing(int keyCode) {
-  return glfwGetKey((GLFWwindow*)CommancheRenderer::Instance->wnd, keyCode);
+  return glfwGetKey((GLFWwindow*)CommancheRenderer::Instance->WndPtr, keyCode);
 }
 
 void Keyboard::FlushPressedKeys() {

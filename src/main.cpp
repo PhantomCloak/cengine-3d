@@ -4,12 +4,11 @@
 
 int main(int argc, char* argv[]) {
     Game game;
-    game.Initialize();
 #if EDITOR
 		Editor* editor = new Editor();
 #endif
 		// TODO brak dep
-		editor->Init(game.renderer.get());
+		editor->Init();
 		editor->sceneList->SetRoot(game.Root);
     game.Setup();
 

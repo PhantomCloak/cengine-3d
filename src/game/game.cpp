@@ -1,10 +1,10 @@
 #include "game.h"
-#include "../assetmgr/AssetManager.h"
 #include "../common/common.h"
 #include "../io/cursor.h"
 #include "../io/keyboard.h"
 #include "io/filesystem.h"
 #include "log/log.h"
+#include "stb_image.h"
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
@@ -19,6 +19,12 @@
 #include "editor/editor.h"
 #endif
 
+struct BlurTexture {
+  unsigned int TextureId = -1;
+  int Width;
+  int Height;
+};
+
 Ref<Shader> defaultShader;
 Ref<Shader> drawCubeShader;
 Ref<Shader> skyboxShader;
@@ -30,7 +36,7 @@ Ref<Shader> bloomShader;
 
 Ref<Model> sampleModel;
 Ref<Model> lightModel;
-Camera *camera;
+Ref<Camera> camera;
 
 bool reloadNeeded = true;
 
@@ -49,73 +55,96 @@ static std::unordered_map<std::string, std::array<std::string, 2>>
                       {"kawase_up", {"kawase.vs", "kawase_upsample.fs"}},
                       {"kawase_down", {"kawase.vs", "kawase_downsample.fs"}}};
 
+unsigned int LoadCubeMap(std::vector<std::string> faces) {
+  stbi_set_flip_vertically_on_load(false);
+  unsigned int textureID;
+  glGenTextures(1, &textureID);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+  int width, height, nrChannels;
+  for (unsigned int i = 0; i < faces.size(); i++) {
+    unsigned char *data =
+        stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+    if (data) {
+      glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height,
+                   0, GL_RGB, GL_UNSIGNED_BYTE, data);
+      stbi_image_free(data);
+    } else {
+      std::cout << "Cubemap texture failed to load at path: " << faces[i]
+                << std::endl;
+      stbi_image_free(data);
+    }
+  }
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+  return textureID;
+}
+
 Game::Game() {
   isRunning = false;
   Log::Inf("Game Constructor Called");
-}
 
-float yaw = 0, pitch = 0;
-
-Game::~Game() { Log::Inf("Game Deconstructor Called"); }
-
-void Game::Initialize() {
   isRunning = true;
 
   renderer = CreateRef<CommancheRenderer>();
   Root = CreateRef<Node>("Root");
 
-  //AssetManager::Initialize(renderer.get());
   renderer->Initialize("C-Engine 3D", 1920, 1080);
 
   Keyboard::Setup();
-  Cursor::Setup(renderer->wnd);
+  Cursor::Setup(renderer->WndPtr);
 
   Log::Inf("Inputs are initialized.");
 
-	for(auto entry : shaderPrograms)
-	{
-		FileSys::WatchFile(TAKE_FIRST(entry.second), [](std::string fileName) {
-				reloadNeeded = true;
-				Log::Inf("Reload requested for %s", fileName.c_str());
-		});
+  for (auto entry : shaderPrograms) {
+    FileSys::WatchFile(TAKE_FIRST(entry.second), [](std::string fileName) {
+      reloadNeeded = true;
+      Log::Inf("Reload requested for %s", fileName.c_str());
+    });
 
-		FileSys::WatchFile(TAKE_SECOND(entry.second), [](std::string fileName) {
-				reloadNeeded = true;
-				Log::Inf("Reload requested for %s", fileName.c_str());
-		});
-	}
+    FileSys::WatchFile(TAKE_SECOND(entry.second), [](std::string fileName) {
+      reloadNeeded = true;
+      Log::Inf("Reload requested for %s", fileName.c_str());
+    });
+  }
 }
+
+Game::~Game() { Log::Inf("Game Deconstructor Called"); }
 
 Ref<DirectionalLight> light;
 
 void ReloadShaders() {
   defaultShader = CreateRef<Shader>(TAKE_FIRST(shaderPrograms["default"]),
-                             TAKE_SECOND(shaderPrograms["default"]));
+                                    TAKE_SECOND(shaderPrograms["default"]));
   skyboxShader = CreateRef<Shader>(TAKE_FIRST(shaderPrograms["skybox"]),
-                            TAKE_SECOND(shaderPrograms["skybox"]));
+                                   TAKE_SECOND(shaderPrograms["skybox"]));
   shadowShader = CreateRef<Shader>(TAKE_FIRST(shaderPrograms["shadow"]),
-                            TAKE_SECOND(shaderPrograms["shadow"]));
+                                   TAKE_SECOND(shaderPrograms["shadow"]));
   debugShader = CreateRef<Shader>(TAKE_FIRST(shaderPrograms["debug"]),
-                           TAKE_SECOND(shaderPrograms["debug"]));
+                                  TAKE_SECOND(shaderPrograms["debug"]));
   bloomShader = CreateRef<Shader>(TAKE_FIRST(shaderPrograms["bloom"]),
-                           TAKE_SECOND(shaderPrograms["bloom"]));
+                                  TAKE_SECOND(shaderPrograms["bloom"]));
   kawaseUpsample = CreateRef<Shader>(TAKE_FIRST(shaderPrograms["kawase_up"]),
-                              TAKE_SECOND(shaderPrograms["kawase_up"]));
-  kawaseDownsample = CreateRef<Shader>(TAKE_FIRST(shaderPrograms["kawase_down"]),
-                                TAKE_SECOND(shaderPrograms["kawase_down"]));
+                                     TAKE_SECOND(shaderPrograms["kawase_up"]));
+  kawaseDownsample =
+      CreateRef<Shader>(TAKE_FIRST(shaderPrograms["kawase_down"]),
+                        TAKE_SECOND(shaderPrograms["kawase_down"]));
 
-	reloadNeeded = false;
+  reloadNeeded = false;
 }
 
 void Game::Setup() {
   Log::Warn("Engine is starting");
 
-  camera = new Camera(glm::vec3(0.0f, 2.0f, 3.0f));
+  camera = CreateRef<Camera>();
 
-	const glm::vec3 ambient = glm::vec3(0.2f);
-	const glm::vec3 diffuse = glm::vec3(0.2f);
-	const glm::vec3 specular = glm::vec3(0.2f);
-
+  const glm::vec3 ambient = glm::vec3(0.2f);
+  const glm::vec3 diffuse = glm::vec3(0.3f);
+  const glm::vec3 specular = glm::vec3(1.0f);
 
   light = CreateRef<DirectionalLight>(ambient, diffuse, specular);
 
@@ -150,13 +179,13 @@ void Game::Update() {
 
 bool updateShadows = false;
 void Game::ProcessInput() {
+  const float mulSpeed = 5.0f;
   static glm::vec2 lastCpos = glm::vec2(0);
+
   glm::vec2 cpos = Cursor::GetCursorPosition();
   glm::vec2 cposOffset = glm::vec2(0);
-
   cposOffset.x = cpos.x - lastCpos.x;
   cposOffset.y = cpos.y - lastCpos.y;
-  const float mulSpeed = 5.0f;
 
   if (Keyboard::IsKeyPressing(Key_W)) {
     camera->ProcessKeyboard(FORWARD, 1.1f * mulSpeed);
@@ -170,16 +199,6 @@ void Game::ProcessInput() {
     camera->ProcessKeyboard(UP, 1.1f * mulSpeed);
   } else if (Keyboard::IsKeyPressing(Key_C)) {
     camera->ProcessKeyboard(DOWN, 1.1f * mulSpeed);
-  } else if (Keyboard::IsKeyPressing(Key_Q)) {
-    yaw += 1.0f;
-    camera->updateCameraVectors();
-  } else if (Keyboard::IsKeyPressing(Key_E)) {
-    yaw -= 1.0f;
-    camera->updateCameraVectors();
-  } else if (Keyboard::IsKeyPressing(Key_H)) {
-    pitch += 1.0f;
-  } else if (Keyboard::IsKeyPressing(Key_J)) {
-    pitch -= 1.0f;
   } else if (Keyboard::IsKeyPressing(Key_F)) {
     updateShadows = true;
   }
@@ -191,7 +210,8 @@ void Game::ProcessInput() {
   Keyboard::Poll();
 }
 
-void RenderScene(Ref<Shader> shader, glm::mat4 projectionMat, glm::mat4 viewMat) {
+void RenderScene(Ref<Shader> shader, glm::mat4 projectionMat,
+                 glm::mat4 viewMat) {
   shader->setVec3("viewPos", camera->Position);
 
   light->Draw(*shader);
@@ -207,23 +227,17 @@ void RenderScene(Ref<Shader> shader, glm::mat4 projectionMat, glm::mat4 viewMat)
   lightModel->Draw(*shader);
 }
 
-struct BlurTexture {
-  unsigned int TextureId;
-  int Width;
-  int Height;
-};
-
-int TurboBlur(int renderWidth, int renderHeight, int brightTexture,
-              int sampleCount, BlurTexture *blurTex, int sceneTexture) {
-  static unsigned int quadVAO = -1, quadVBO = -1;
+int KawaseBlur(int renderWidth, int renderHeight, int brightTexture,
+               int sampleCount, BlurTexture *blurTex, int sceneTexture) {
+  static unsigned int quadVao = -1, quadVbo = -1;
   static unsigned int hdrFbo = -1, hdrOutTex = -1;
   static unsigned int bloomFbo = -1, bloomOutTex = -1;
 
-  if (quadVAO == -1 && quadVBO == -1) {
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+  if (quadVao == -1) {
+    glGenVertexArrays(1, &quadVao);
+    glGenBuffers(1, &quadVbo);
+    glBindVertexArray(quadVao);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
                  GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
@@ -270,7 +284,7 @@ int TurboBlur(int renderWidth, int renderHeight, int brightTexture,
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, brightTexture);
-  glBindVertexArray(quadVAO);
+  glBindVertexArray(quadVao);
 
   // Downscale
   for (int i = 0; i < sampleCount; i++) {
@@ -332,14 +346,14 @@ int TurboBlur(int renderWidth, int renderHeight, int brightTexture,
 }
 
 int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
-  static unsigned int debugFbo = -1, debugOutTex = -1, quadVBO = -1,
-                      quadVAO = -1;
+  static unsigned int debugFbo = -1, debugOutTex = -1, quadVbo = -1,
+                      quadVao = -1;
 
-  if (quadVAO == -1 && quadVBO == -1) {
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+  if (quadVao == -1) {
+    glGenVertexArrays(1, &quadVao);
+    glGenBuffers(1, &quadVbo);
+    glBindVertexArray(quadVao);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
                  GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
@@ -350,7 +364,7 @@ int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
                           (void *)(3 * sizeof(float)));
   }
 
-  if (debugFbo == -1 && debugOutTex == -1) {
+  if (debugFbo == -1) {
     glGenFramebuffers(1, &debugFbo);
     glGenTextures(1, &debugOutTex);
 
@@ -381,7 +395,7 @@ int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
   glBindTexture(GL_TEXTURE_2D, textureId);
 
   // Draw
-  glBindVertexArray(quadVAO);
+  glBindVertexArray(quadVao);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   glBindVertexArray(0);
 
@@ -391,22 +405,25 @@ int RenderDepthToTexture(int renderWitdh, int renderHeight, int textureId) {
 }
 
 void Game::Render() {
-  int renderWitdh = CommancheRenderer::screenWidth;
-  int renderHeight = CommancheRenderer::screenHeight;
+  int renderWitdh = CommancheRenderer::ScreenWidth;
+  int renderHeight = CommancheRenderer::ScreenHeight;
 
-	if(reloadNeeded)
-	{
-		ReloadShaders();
-	}
+  if (reloadNeeded) {
+    ReloadShaders();
+  }
 
   // Viewport
+  const float viewNear = 0.1f;
+  const float viewFar = 10000.0f;
   static unsigned int vpFbo = -1, vpDepthRbo = -1, vpOutTex = -1,
                       vpDepthOutTex = -1, vpBrightOutTex = -1;
 
   // Skybox
-  static unsigned int skyboxVAO = -1, skyboxVBO = -1, skyboxCubeTextureId = -1;
+  static unsigned int skyboxVao = -1, skyboxVbo = -1, skyboxCubeTextureId = -1;
 
   // Light
+  const float shadowNear = 0.1f;
+  const float shadowFar = 4000.0f;
   static unsigned int shadowMapFbo = -1, shadowMapOutTex = -1;
   static bool shadowInitial = false;
 
@@ -454,33 +471,13 @@ void Game::Render() {
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                               GL_RENDERBUFFER, vpDepthRbo);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    // HACK
-    for (int i = 0; i < sampleCount; i++) {
-      int textureW = renderWitdh / pow(2, i);
-      int textureH = renderHeight / pow(2, i);
-
-      unsigned int texture = -1;
-      glGenTextures(1, &texture);
-
-      glBindTexture(GL_TEXTURE_2D, texture);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureW, textureH, 0, GL_RGB,
-                   GL_UNSIGNED_BYTE, nullptr);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-      blurChain[i] = BlurTexture(
-          {.TextureId = texture, .Width = textureW, .Height = textureH});
-    }
   }
 
-  if (skyboxVBO == -1 && skyboxVBO == -1 && skyboxCubeTextureId == -1) {
-    glGenVertexArrays(1, &skyboxVAO);
-    glGenBuffers(1, &skyboxVBO);
-    glBindVertexArray(skyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+  if (skyboxVbo == -1) {
+    glGenVertexArrays(1, &skyboxVao);
+    glGenBuffers(1, &skyboxVbo);
+    glBindVertexArray(skyboxVao);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices,
                  GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
@@ -490,11 +487,11 @@ void Game::Render() {
     std::vector<std::string> faces{"skybox/right.jpg", "skybox/left.jpg",
                                    "skybox/top.jpg",   "skybox/bottom.jpg",
                                    "skybox/front.jpg", "skybox/back.jpg"};
-    skyboxCubeTextureId = AssetManager::LoadCubeMap(faces);
+    skyboxCubeTextureId = LoadCubeMap(faces);
   }
 
   const unsigned int SHADOW_WIDTH = 1024 * 5, SHADOW_HEIGHT = 1024 * 5;
-  if (shadowMapFbo == -1 && shadowMapOutTex == -1) {
+  if (shadowMapFbo == -1) {
     glGenFramebuffers(1, &shadowMapFbo);
     glGenTextures(1, &shadowMapOutTex);
 
@@ -516,18 +513,37 @@ void Game::Render() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
+  if (blurChain[0].TextureId == -1) {
+    for (int i = 0; i < sampleCount; i++) {
+      int textureW = renderWitdh / pow(2, i);
+      int textureH = renderHeight / pow(2, i);
+
+      unsigned int texture = -1;
+      glGenTextures(1, &texture);
+
+      glBindTexture(GL_TEXTURE_2D, texture);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureW, textureH, 0, GL_RGB,
+                   GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+      blurChain[i] = BlurTexture(
+          {.TextureId = texture, .Width = textureW, .Height = textureH});
+    }
+  }
+
   // Render Scene From Light Perspective
+  // =======================================================
 
   glm::mat4 view;
-
-  float nearPlane = 0.1f;
-  float farPlane = 4000.0f;
 
   float height = SHADOW_HEIGHT;
   float width = SHADOW_WIDTH;
 
-  glm::mat4 orthoProjection = glm::ortho(-width / 2, width / 2, -height / 2,
-                                         height / 2, nearPlane, farPlane);
+  glm::mat4 shadowProjection = glm::ortho(-width / 2, width / 2, -height / 2,
+                                          height / 2, shadowNear, shadowFar);
 
   glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
   if (!shadowInitial || updateShadows) {
@@ -539,7 +555,7 @@ void Game::Render() {
     view = light->GetViewMatrix();
 
     shadowShader->use();
-    RenderScene(shadowShader, orthoProjection, view);
+    RenderScene(shadowShader, shadowProjection, view);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -553,6 +569,7 @@ void Game::Render() {
       RenderDepthToTexture(SHADOW_WIDTH, SHADOW_HEIGHT, shadowMapOutTex);
 
   // Render Scene Lit
+  // =======================================================
 
   glCullFace(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
@@ -565,24 +582,24 @@ void Game::Render() {
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D,
                          vpBrightOutTex, 0);
 
-  GLenum drawBuffers2[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
-                           GL_COLOR_ATTACHMENT2};
-  glDrawBuffers(3, drawBuffers2);
+  GLenum drawBuffers[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+                          GL_COLOR_ATTACHMENT2};
+  glDrawBuffers(3, drawBuffers);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  // glViewport(0, 0, renderWitdh, renderHeight);
   glClearColor(0.0f, 0.13f, 0.0, 1.0f);
   glEnable(GL_DEPTH_TEST);
 
   glm::mat4 projection = glm::perspective(
       glm::radians(camera->Zoom), (float)renderWitdh / (float)renderHeight,
-      0.1f, 10000.0f);
+      viewNear, viewFar);
+
   view = camera->GetViewMatrix();
 
   defaultShader->use();
 
   defaultShader->setInt("shadowMap", 0);
-  defaultShader->setMat4("lightProjection", orthoProjection);
+  defaultShader->setMat4("lightProjection", shadowProjection);
   defaultShader->setMat4("lightView", light->GetViewMatrix());
   defaultShader->setVec3("brightCutoff",
                          Editor::Instance->ppfxInspector->brightColorCuttoff);
@@ -594,11 +611,11 @@ void Game::Render() {
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-  int debugHdrTexture = TurboBlur(renderWitdh, renderHeight, vpBrightOutTex,
-                                  sampleCount, blurChain, vpOutTex);
+  int debugHdrTexture = KawaseBlur(renderWitdh, renderHeight, vpBrightOutTex,
+                                   sampleCount, blurChain, vpOutTex);
 
   // Render Skybox
-
+  // =======================================================
   glDepthFunc(GL_LEQUAL);
 
   skyboxShader->use();
@@ -606,7 +623,7 @@ void Game::Render() {
   skyboxShader->setMat4("view", view);
   skyboxShader->setMat4("projection", projection);
 
-  glBindVertexArray(skyboxVAO);
+  glBindVertexArray(skyboxVao);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubeTextureId);
   glDrawArrays(GL_TRIANGLES, 0, 36);

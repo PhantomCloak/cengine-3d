@@ -9,9 +9,8 @@ class Game {
     public:
     Game();
     ~Game();
-    void Initialize();
-    void Run();
     void Setup();
+    void Run();
     void ProcessInput();
     void Update();
     void Render();

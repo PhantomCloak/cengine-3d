@@ -35,8 +35,8 @@ void CoordinateCalculator::ConvertPixelsToMeters(float& xPixel, float& yPixel) {
 
 void CoordinateCalculator::NormalizePixelCoord(float& xPixel, float& yPixel) {
 #if EDITOR
-    float scaleX = CommancheRenderer::screenWidth / static_cast<float>(referenceWidth);
-    float scaleY = CommancheRenderer::screenHeight / static_cast<float>(referenceHeight);
+    float scaleX = CommancheRenderer::ScreenWidth / static_cast<float>(referenceWidth);
+    float scaleY = CommancheRenderer::ScreenHeight / static_cast<float>(referenceHeight);
 
     xPixel = xPixel / scaleX;
     yPixel = yPixel / scaleY;

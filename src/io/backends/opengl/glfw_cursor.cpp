@@ -21,10 +21,6 @@ glm::vec2 Cursor::GetCursorPosition() {
     return glm::vec2(x, y);
 }
 
-glm::vec2 Cursor::GetCursorWorldPosition(glm::vec2 screenPoint, CommancheCamera cam) {
-
-}
-
 bool Cursor::HasLeftCursorClicked() {
     return glfwGetMouseButton(wnd, 0);
 }
@@ -36,7 +32,7 @@ bool Cursor::HasRightCursorClicked() {
 void Cursor::CaptureMouse(bool shouldCapture)
 {
 	if(shouldCapture)
-		glfwSetInputMode((GLFWwindow*)CommancheRenderer::Instance->wnd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode((GLFWwindow*)CommancheRenderer::Instance->WndPtr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	else
-		glfwSetInputMode((GLFWwindow*)CommancheRenderer::Instance->wnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		glfwSetInputMode((GLFWwindow*)CommancheRenderer::Instance->WndPtr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }

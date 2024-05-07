@@ -24,9 +24,13 @@ void EditorPPFXInspector::RenderWindow() {
 
 		}
 
+		ImGui::Spacing();
+
 		ImGui::InputFloat(_labelPrefix("B. Cutoff x: ").c_str(), &brightColorCuttoff.x, 0.05f);
 		ImGui::InputFloat(_labelPrefix("B. Cutoff y: ").c_str(), &brightColorCuttoff.y, 0.05f);
 		ImGui::InputFloat(_labelPrefix("B. Cutoff z: ").c_str(), &brightColorCuttoff.z, 0.05f);
+
+		ImGui::Spacing();
 
     ImGui::InputFloat("Exposure: ", &exposure, 0.1);
   }

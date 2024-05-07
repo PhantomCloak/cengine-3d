@@ -122,7 +122,7 @@ void EditorMenuBar::RenderWindow() {
         ImGui::SameLine();
         ImGui::Dummy(ImVec2(10.0f, 0.0f));
 
-        float fps = CommancheRenderer::Instance->GetFps();
+				float fps = 0.0f;
         ImGui::SameLine();
         ImGui::Text("FPS: %.1f", fps);
     }
