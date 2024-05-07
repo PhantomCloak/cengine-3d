@@ -4,7 +4,7 @@ precision mediump float;
 
 uniform sampler2D u_sourceTex;
 
-in vec2 v_texCoord;
+in vec2 TexCoords;
 
 out vec3 FragColor;
 
@@ -12,7 +12,7 @@ out vec3 FragColor;
 // This shader performs upsampling on a texture, as taken from Call Of Duty method, presented at ACM Siggraph 2014.
 void main() {
     // The filter kernel is applied with a radius, specified in texture coordinates, so that the radius will vary across mip resolutions.
-		float u_radius = 0.005;
+	float u_radius = 0.005;
     float x = u_radius;
     float y = u_radius;
 
@@ -21,17 +21,17 @@ void main() {
     // d - e - f
     // g - h - i
     // === ("e" is the current texel) ===
-    vec3 a = texture(u_sourceTex, vec2(v_texCoord.x - x, v_texCoord.y + y)).rgb;
-    vec3 b = texture(u_sourceTex, vec2(v_texCoord.x, v_texCoord.y + y)).rgb;
-    vec3 c = texture(u_sourceTex, vec2(v_texCoord.x + x, v_texCoord.y + y)).rgb;
+    vec3 a = texture(u_sourceTex, vec2(TexCoords.x - x, TexCoords.y + y)).rgb;
+    vec3 b = texture(u_sourceTex, vec2(TexCoords.x, TexCoords.y + y)).rgb;
+    vec3 c = texture(u_sourceTex, vec2(TexCoords.x + x, TexCoords.y + y)).rgb;
 
-    vec3 d = texture(u_sourceTex, vec2(v_texCoord.x - x, v_texCoord.y)).rgb;
-    vec3 e = texture(u_sourceTex, vec2(v_texCoord.x, v_texCoord.y)).rgb;
-    vec3 f = texture(u_sourceTex, vec2(v_texCoord.x + x, v_texCoord.y)).rgb;
+    vec3 d = texture(u_sourceTex, vec2(TexCoords.x - x, TexCoords.y)).rgb;
+    vec3 e = texture(u_sourceTex, vec2(TexCoords.x, TexCoords.y)).rgb;
+    vec3 f = texture(u_sourceTex, vec2(TexCoords.x + x, TexCoords.y)).rgb;
 
-    vec3 g = texture(u_sourceTex, vec2(v_texCoord.x - x, v_texCoord.y - y)).rgb;
-    vec3 h = texture(u_sourceTex, vec2(v_texCoord.x, v_texCoord.y - y)).rgb;
-    vec3 i = texture(u_sourceTex, vec2(v_texCoord.x + x, v_texCoord.y - y)).rgb;
+    vec3 g = texture(u_sourceTex, vec2(TexCoords.x - x, TexCoords.y - y)).rgb;
+    vec3 h = texture(u_sourceTex, vec2(TexCoords.x, TexCoords.y - y)).rgb;
+    vec3 i = texture(u_sourceTex, vec2(TexCoords.x + x, TexCoords.y - y)).rgb;
 
     // Apply weighted distribution, by using a 3x3 tent filter:
     //  1   | 1 2 1 |

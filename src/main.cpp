@@ -6,10 +6,9 @@ int main(int argc, char* argv[]) {
     Game game;
 #if EDITOR
 		Editor* editor = new Editor();
-#endif
-		// TODO brak dep
 		editor->Init();
 		editor->sceneList->SetRoot(game.Root);
+#endif
     game.Setup();
 
     while (game.isRunning) {
