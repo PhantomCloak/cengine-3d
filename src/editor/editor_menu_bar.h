@@ -16,6 +16,7 @@ class EditorMenuBar : public EditorWindow {
     void RenderWindow() override;
     bool IsFocused() override;
     std::unordered_map<int, bool> enabledWindows;
+		float elapsedMs;
   private:
     std::shared_ptr<Editor> editorInstance;
     void LoadDialog();

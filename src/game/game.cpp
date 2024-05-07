@@ -497,8 +497,7 @@ void Game::Render() {
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	if(!shadowInitial || updateShadows)
 	{
-		//glCullFace(GL_FRONT);
-		Log::Inf("I called");
+		glCullFace(GL_FRONT);
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFbo);
 		glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -520,7 +519,7 @@ void Game::Render() {
 
 	// Render Scene Lit
 
-	//glCullFace(GL_BACK);
+	glCullFace(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, vpFbo);
 	glViewport(0, 0, renderWitdh, renderHeight);
 

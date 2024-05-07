@@ -108,15 +108,11 @@ void EditorMenuBar::RenderWindow() {
         AssetsMenu();
 
         ImGui::SameLine(ImGui::GetWindowWidth() - 400);
-        if (true) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
-            ImGui::Text("Game Running: Yes");
-            ImGui::PopStyleColor();
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-            ImGui::Text("Game Running: No");
-            ImGui::PopStyleColor();
-        }
+
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+				ImGui::Text("Frame Ms: %.2f", elapsedMs);
+				ImGui::PopStyleColor();
+
 
         ImGui::SameLine();
         ImGui::Dummy(ImVec2(10.0f, 0.0f));

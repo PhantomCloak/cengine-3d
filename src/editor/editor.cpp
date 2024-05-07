@@ -4,6 +4,7 @@
 #include "../libs/imgui/imgui.h"
 #include "editor_style.h"
 #include "imgui.h"
+#include "common/common.h"
 
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -114,6 +115,12 @@ glm::vec2 Editor::GetViewPortSize() {
 
 void Editor::Render() {
     Keybindings();
+		static float lastFrame = 0;
+		float currentFrame = getTime();
+
+		menuBar->elapsedMs = currentFrame - lastFrame;
+		lastFrame = currentFrame;
+		
 
 #if RENDER_BACKEND_OPENGL
     ImGui_ImplOpenGL3_NewFrame();
@@ -135,6 +142,5 @@ void Editor::Render() {
     ImGui::UpdatePlatformWindows();
     ImGui::RenderPlatformWindowsDefault();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
 #endif
 }
