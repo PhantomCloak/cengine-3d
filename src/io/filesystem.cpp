@@ -1,8 +1,10 @@
 #include "filesystem.h"
-#include "nfd.h"
 #include <filesystem>
+#include <iostream>
 #include <sstream>
+#include "nfd.h"
 #include <fstream>
+#include <thread>
 
 
 std::vector<std::string> FileSys::GetFilesInDirectory(std::string path) {
@@ -122,4 +124,32 @@ void FileSys::OpenFileSaveDialog(std::string defaultName, std::string defaultPat
     }
 
     NFD_Quit();
+}
+
+void FileSys::WatchFile(const std::string& path, std::function<void(std::string fileName)> callback) {
+    std::thread([path, callback]() {
+        if (!std::filesystem::exists(path)) {
+            std::cerr << "File does not exist: " << path << std::endl;
+            return;
+        }
+
+        auto last_modified_time = std::filesystem::last_write_time(path);
+        std::atomic<bool> running{true};
+
+        while (running) {
+            std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
+
+            try {
+                auto current_modified_time = std::filesystem::last_write_time(path);
+                if (last_modified_time != current_modified_time) {
+                    callback(path);
+                    last_modified_time = current_modified_time; // Update last modified time
+                }
+            } catch (const std::filesystem::filesystem_error& e) {
+                std::cerr << "Error accessing file: " << e.what() << std::endl;
+                running = false; // Optionally stop on error
+            }
+        }
+
+    }).detach();
 }

@@ -15,5 +15,5 @@ class FileSys {
     static void OpenFilePickerDialog(std::function<void(std::string filePath)> callback);
     static void OpenFileSaveDialog(std::string defaultName, std::string defaultPath, std::function<void(std::string filePath)>&& callback);
     static void OpenFileOSDefaults(std::string path);
-		static void WatchFile(std::string path);
+		static void WatchFile(const std::string& path, std::function<void(std::string fileName)> callback);
 };

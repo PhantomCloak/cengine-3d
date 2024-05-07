@@ -16,31 +16,19 @@ void AssetManager::Initialize(CommancheRenderer* render) {
     Log::Inf("Asset manager initialized");
 }
 
-void AssetManager::AddShader(const std::string& assetId, const std::string& path) {
-    int shaderId = crender->CLoadShader(path, assetId);
-
-    if (!crender->IsShaderValid(shaderId)) {
-        Log::Warn("Shader with invalid ID %d has tried to load", shaderId);
-        return;
-    }
-
-    Log::Inf("Shader has loaded id: %d", shaderId);
-
-    shaders.insert(std::make_pair(assetId, shaderId));
-}
 
 int AssetManager::AddTexture(const std::string& assetId, const std::string& path) {
-    int textureId = crender->CLoadTexture(path);
+    //int textureId = crender->CLoadTexture(path);
 
-    if (!crender->IsTextureValid(textureId)) {
-        Log::Warn("Texture with invalid ID %d has tried to load", textureId);
-        return -1;
-    }
+    //if (!crender->IsTextureValid(textureId)) {
+    //    Log::Warn("Texture with invalid ID %d has tried to load", textureId);
+    //    return -1;
+    //}
 
-    CommancheTextureInfo inf = crender->GetTextureInfo(textureId);
-    Log::Inf("Texture has loaded id: %d size: %dx%d", textureId, inf.width, inf.height);
-    textures.insert(std::make_pair(assetId, textureId));
-    return textureId;
+    //CommancheTextureInfo inf = crender->GetTextureInfo(textureId);
+    //Log::Inf("Texture has loaded id: %d size: %dx%d", textureId, inf.width, inf.height);
+    //textures.insert(std::make_pair(assetId, textureId));
+    //return textureId;
 }
 
 void AssetManager::AddFont(const std::string& assetId, const std::string& path, int fontSize) {
@@ -86,14 +74,14 @@ std::string AssetManager::GetTexture(int textureId) {
 
 
 TextureInf AssetManager::GetTextureInf(const std::string& assetId) {
-    int textureId = textures.at(assetId);
-    CommancheTextureInfo infR = crender->GetTextureInfo(textureId);
+    //int textureId = textures.at(assetId);
+    //CommancheTextureInfo infR = crender->GetTextureInfo(textureId);
 
-    TextureInf inf;
-    inf.height = infR.height;
-    inf.width = infR.width;
+    //TextureInf inf;
+    //inf.height = infR.height;
+    //inf.width = infR.width;
 
-    return inf;
+    //return inf;
 }
 
 // loads a cubemap texture from 6 individual texture faces
